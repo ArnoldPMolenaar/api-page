@@ -1,0 +1,39 @@
+package controllers
+
+import (
+	"api-page/main/src/dto/requests"
+	"api-page/main/src/dto/responses"
+	"api-page/main/src/services"
+
+	util "github.com/ArnoldPMolenaar/api-utils/utils"
+	"github.com/gofiber/fiber/v2"
+
+	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
+)
+
+// CreateApp method to create an app.
+func CreateApp(c *fiber.Ctx) error {
+	// Parse the request.
+	request := requests.CreateApp{}
+	if err := c.BodyParser(&request); err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
+	}
+
+	// Validate app fields.
+	validate := util.NewValidator()
+	if err := validate.Struct(request); err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.Validator, util.ValidatorErrors(err))
+	}
+
+	// Create the app.
+	app, err := services.CreateApp(request.Name)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err)
+	}
+
+	// Return the app.
+	response := responses.App{}
+	response.SetApp(app)
+
+	return c.JSON(response)
+}

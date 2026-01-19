@@ -1,6 +1,8 @@
 package database
 
 import (
+	"api-page/main/src/models"
+
 	"gorm.io/gorm"
 )
 
@@ -8,10 +10,10 @@ import (
 // See: https://gorm.io/docs/migration.html#Auto-Migration
 func Migrate(db *gorm.DB) error {
 	// Updated migration set: normalized models + existing domain models.
-	//err := db.AutoMigrate()
-	//if err != nil {
-	//	return err
-	//}
+	err := db.AutoMigrate(&models.App{})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
