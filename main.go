@@ -35,6 +35,9 @@ func main() {
 	}
 	defer cache.Valkey.Close()
 
+	// Register a public routes_util for app.
+	routes.PublicRoutes(app)
+
 	// Register a private routes_util for app.
 	routes.PrivateRoutes(app)
 	// Register route for 404 Error.
