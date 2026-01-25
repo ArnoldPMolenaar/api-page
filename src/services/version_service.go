@@ -227,7 +227,7 @@ func PublishVersion(appName string, versionID uint) error {
 
 // DeleteVersion method to delete a version.
 func DeleteVersion(versionID uint, appName string) error {
-	err := database.Pg.Delete(&models.Version{Model: gorm.Model{ID: versionID}}).Error
+	err := database.Pg.Delete(&models.Version{}, versionID).Error
 	if err == nil {
 		_ = deleteVersionsLookupFromCache(appName)
 	}

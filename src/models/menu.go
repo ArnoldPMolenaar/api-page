@@ -8,5 +8,6 @@ type Menu struct {
 	Name      string `gorm:"not null;index:idx_name,unique"`
 
 	// Relationships.
-	Version Version `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:VersionID;references:ID"`
+	Version           Version            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:VersionID;references:ID"`
+	MenuItemRelations []MenuItemRelation `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:MenuID;references:ID"`
 }
