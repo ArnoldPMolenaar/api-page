@@ -7,5 +7,7 @@ const (
 	VersionAvailable   = "versionAvailable"
 	VersionNotEnabled  = "versionNotEnabled"
 	VersionIsPublished = "versionIsPublished"
+	MenuExists         = "menuExists"
+	MenuAvailable      = "menuAvailable"
 	// Add more error codes as needed.
 )

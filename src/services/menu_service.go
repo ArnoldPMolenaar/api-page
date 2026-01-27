@@ -15,8 +15,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// IsMenuAvailable method to check if a menu is available.
-func IsMenuAvailable(versionID uint, name string, ignore *string) (bool, error) {
+// IsMenuNameAvailable method to check if a menu is available.
+func IsMenuNameAvailable(versionID uint, name string, ignore *string) (bool, error) {
 	query := database.Pg.Limit(1)
 	var result *gorm.DB
 	if ignore != nil {
@@ -97,7 +97,10 @@ func GetMenuByID(menuID uint) (*models.Menu, error) {
 
 	if result := database.Pg.
 		Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
-			return db.Preload("MenuItemParent").Preload("MenuItemChild").Order("position ASC")
+			return db.Preload("MenuItemParent", func(db *gorm.DB) *gorm.DB { return db.Preload("Indexing") }).
+				Preload("MenuItemChild", func(db *gorm.DB) *gorm.DB { return db.Preload("Indexing") }).
+				Order("menu_item_parent_id NULLS FIRST").
+				Order("position ASC")
 		}).
 		Find(menu, "id = ?", menuID); result.Error != nil {
 		return nil, result.Error
@@ -229,15 +232,17 @@ func reconcileMenuItems(tx *gorm.DB, menu *models.Menu, parent *models.MenuItem,
 		}
 
 		// Remove relations that don't match desired parent and position.
-		matchesParent := existingRel.MenuItemParentID.Valid == desiredParentID.Valid && (!existingRel.MenuItemParentID.Valid || existingRel.MenuItemParentID.V == desiredParentID.V)
-		if !(matchesParent && existingRel.Position == dto.Position) {
-			if err := tx.Delete(&existingRel).Error; err != nil {
-				return err
+		if existingRel.MenuID != 0 {
+			matchesParent := existingRel.MenuItemParentID.Valid == desiredParentID.Valid && (!existingRel.MenuItemParentID.Valid || existingRel.MenuItemParentID.V == desiredParentID.V)
+			if !(matchesParent && existingRel.Position == *dto.Position) {
+				if err := tx.Delete(&existingRel).Error; err != nil {
+					return err
+				}
 			}
 		}
 
 		// Ensure target relation exists.
-		rel := &models.MenuItemRelation{MenuID: menu.ID, MenuItemChildID: mi.ID, Position: dto.Position}
+		rel := &models.MenuItemRelation{MenuID: menu.ID, MenuItemChildID: mi.ID, Position: *dto.Position}
 		if desiredParentID.Valid {
 			rel.MenuItemParentID = desiredParentID
 		}
@@ -286,7 +291,7 @@ func reconcileMenuItems(tx *gorm.DB, menu *models.Menu, parent *models.MenuItem,
 
 // upsertMenuItem creates or updates a MenuItem and synchronizes its indexing.
 func upsertMenuItem(tx *gorm.DB, menu *models.Menu, dto *requests.UpdateMenuItem) (*models.MenuItem, error) {
-	mi := &models.MenuItem{}
+	mi := &models.MenuItem{Indexing: make([]models.MenuItemIndexing, 0)}
 	isNew := dto.ID == nil
 	if !isNew {
 		if err := tx.First(mi, "id = ?", *dto.ID).Error; err != nil {
@@ -345,6 +350,8 @@ func upsertMenuItem(tx *gorm.DB, menu *models.Menu, dto *requests.UpdateMenuItem
 			Updates(map[string]interface{}{"value": mii.Value}).Error; err != nil {
 			return nil, err
 		}
+
+		mi.Indexing = append(mi.Indexing, *mii)
 	}
 
 	for i := range existing {
@@ -364,6 +371,7 @@ func createMenuItemHierarchy(tx *gorm.DB, menu *models.Menu, parent *models.Menu
 	mi := &models.MenuItem{
 		VersionID: menu.VersionID,
 		Name:      item.Name,
+		Indexing:  make([]models.MenuItemIndexing, len(item.Indexing)),
 	}
 	if item.Icon != nil {
 		mi.Icon = sql.NullString{String: *item.Icon, Valid: true}
@@ -384,12 +392,13 @@ func createMenuItemHierarchy(tx *gorm.DB, menu *models.Menu, parent *models.Menu
 		if err := tx.FirstOrCreate(mii, mii).Error; err != nil {
 			return 0, err
 		}
+		mi.Indexing[i] = *mii
 	}
 
 	rel := &models.MenuItemRelation{
 		MenuID:          menu.ID,
 		MenuItemChildID: mi.ID,
-		Position:        item.Position,
+		Position:        *item.Position,
 	}
 	if parent != nil {
 		rel.MenuItemParentID = sql.Null[uint]{V: parent.ID, Valid: true}
