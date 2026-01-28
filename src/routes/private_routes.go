@@ -32,6 +32,7 @@ func PrivateRoutes(a *fiber.App) {
 	menus := route.Group("/menus")
 	menus.Get("/", middleware.MachineProtected(), controllers.GetMenu)
 	menus.Post("/", middleware.MachineProtected(), controllers.CreateMenu)
+	menus.Get("/lookup", middleware.MachineProtected(), controllers.GetMenuLookup)
 	menus.Get("/name/available", middleware.MachineProtected(), controllers.IsMenuNameAvailable)
 	menus.Get("/:id", middleware.MachineProtected(), controllers.GetMenuByID)
 	menus.Put("/:id", middleware.MachineProtected(), controllers.UpdateMenu)

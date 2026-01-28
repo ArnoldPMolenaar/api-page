@@ -1,16 +1,24 @@
 package services
 
 import (
+	"api-page/main/src/cache"
 	"api-page/main/src/database"
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/dto/responses"
 	"api-page/main/src/enums"
 	"api-page/main/src/models"
+	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"os"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/ArnoldPMolenaar/api-utils/pagination"
 	"github.com/gofiber/fiber/v2"
+	"github.com/valkey-io/valkey-go"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -91,6 +99,49 @@ func GetMenus(c *fiber.Ctx) (*pagination.Model, error) {
 	return &paginationModel, nil
 }
 
+// GetMenuLookup method to get a lookup of menus.
+func GetMenuLookup(versionID uint, name *string) (*[]models.Menu, error) {
+	menus := make([]models.Menu, 0)
+
+	if inCache, err := isMenusLookupInCache(versionID); err != nil {
+		return nil, err
+	} else if inCache {
+		if cacheMenus, err := getMenusLookupFromCache(versionID); err != nil {
+			return nil, err
+		} else if cacheMenus != nil && len(*cacheMenus) > 0 {
+			menus = *cacheMenus
+		}
+	}
+
+	if len(menus) == 0 {
+		query := database.Pg.Model(&models.Menu{}).
+			Select("id", "name")
+
+		if result := query.Find(&menus, "version_id = ?", versionID); result.Error != nil {
+			return nil, result.Error
+		}
+
+		_ = setMenusLookupToCache(versionID, &menus)
+	}
+
+	// If a name filter is provided, perform case-insensitive substring match on the list.
+	if name != nil {
+		target := strings.TrimSpace(*name)
+		if target != "" {
+			lowerTarget := strings.ToLower(target)
+			filtered := make([]models.Menu, 0, len(menus))
+			for i := range menus {
+				if strings.Contains(strings.ToLower(menus[i].Name), lowerTarget) {
+					filtered = append(filtered, menus[i])
+				}
+			}
+			menus = filtered
+		}
+	}
+
+	return &menus, nil
+}
+
 // GetMenuByID method to get a menu by ID.
 func GetMenuByID(menuID uint) (*models.Menu, error) {
 	menu := &models.Menu{}
@@ -137,6 +188,8 @@ func CreateMenu(menu *requests.CreateMenu) (*models.Menu, error) {
 		return nil, err
 	}
 
+	_ = deleteMenusLookupFromCache(m.VersionID)
+
 	return result, nil
 }
 
@@ -166,12 +219,17 @@ func UpdateMenu(oldMenu *models.Menu, menu *requests.UpdateMenu) (*models.Menu, 
 		return nil, err
 	}
 
+	_ = deleteMenusLookupFromCache(oldMenu.VersionID)
+
 	return oldMenu, nil
 }
 
 // DeleteMenu method to delete a menu.
-func DeleteMenu(menuID uint) error {
+func DeleteMenu(versionID, menuID uint) error {
 	err := database.Pg.Delete(&models.Menu{}, menuID).Error
+	if err == nil {
+		_ = deleteMenusLookupFromCache(versionID)
+	}
 
 	return err
 }
@@ -179,8 +237,88 @@ func DeleteMenu(menuID uint) error {
 // RestoreMenu method to restore a deleted menu.
 func RestoreMenu(menuID uint) error {
 	err := database.Pg.Unscoped().Model(&models.Menu{}).Where("id = ?", menuID).Update("deleted_at", nil).Error
+	if err == nil {
+		var versionID uint
+
+		if result := database.Pg.Unscoped().Model(&models.Menu{}).Where("id = ?", menuID).Pluck("version_id", &versionID); result.Error != nil {
+			return result.Error
+		}
+
+		_ = deleteMenusLookupFromCache(versionID)
+	}
 
 	return err
+}
+
+// getMenusLookupCacheKey gets the key for the cache.
+func getMenusLookupCacheKey(versionID uint) string {
+	return fmt.Sprintf("menus:lookup:%d", versionID)
+}
+
+// isMenusLookupInCache checks if the menus exists in the cache.
+func isMenusLookupInCache(versionID uint) (bool, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Exists().Key(getMenusLookupCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return false, result.Error()
+	}
+
+	value, err := result.ToInt64()
+	if err != nil {
+		return false, err
+	}
+
+	return value == 1, nil
+}
+
+// getMenusLookupFromCache gets the menus from the cache.
+func getMenusLookupFromCache(versionID uint) (*[]models.Menu, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Get().Key(getMenusLookupCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return nil, result.Error()
+	}
+
+	value, err := result.ToString()
+	if err != nil {
+		return nil, err
+	}
+
+	var menus []models.Menu
+	if err := json.Unmarshal([]byte(value), &menus); err != nil {
+		return nil, err
+	}
+
+	return &menus, nil
+}
+
+// setMenusLookupToCache sets the menus to the cache.
+func setMenusLookupToCache(versionID uint, menus *[]models.Menu) error {
+	value, err := json.Marshal(menus)
+	if err != nil {
+		return err
+	}
+
+	expiration := os.Getenv("VALKEY_EXPIRATION")
+	duration, err := time.ParseDuration(expiration)
+	if err != nil {
+		return err
+	}
+
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Set().Key(getMenusLookupCacheKey(versionID)).Value(valkey.BinaryString(value)).Ex(duration).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deleteMenusLookupFromCache deletes existing menus from the cache.
+func deleteMenusLookupFromCache(versionID uint) error {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getMenusLookupCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
 }
 
 // sortMenuItemRelations sorts the relations grouped by parent (NULL first, then by parent ID) and within each group by Position.

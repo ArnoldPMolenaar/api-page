@@ -24,6 +24,34 @@ func GetMenu(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(paginationModel)
 }
 
+// GetMenuLookup func for getting menu lookup.
+func GetMenuLookup(c *fiber.Ctx) error {
+	versionIDParam := c.Query("versionId")
+	if versionIDParam == "" {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "VersionId parameter is required.")
+	}
+	versionID, err := util.StringToUint(versionIDParam)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	nameParam := c.Query("name")
+	var name *string
+	if nameParam != "" {
+		name = &nameParam
+	}
+
+	menus, err := services.GetMenuLookup(versionID, name)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	}
+
+	response := responses.MenuLookupList{}
+	response.SetMenuLookupList(menus)
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
 // GetMenuByID func for getting a menu by ID.
 func GetMenuByID(c *fiber.Ctx) error {
 	menuIDParam := c.Params("id")
@@ -193,7 +221,7 @@ func DeleteMenu(c *fiber.Ctx) error {
 	}
 
 	// Delete the Menu.
-	if err := services.DeleteMenu(menu.ID); err != nil {
+	if err := services.DeleteMenu(menu.VersionID, menu.ID); err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
 
