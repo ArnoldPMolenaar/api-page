@@ -10,6 +10,7 @@ type PagePartialRowColumn struct {
 	gorm.Model
 	PagePartialRowID uint `gorm:"not null"`
 	ModuleID         sql.Null[uint]
+	Position         uint
 	Cols             string `gorm:"no null;size:32"`
 	Xxl              sql.NullInt16
 	Xl               sql.NullInt16

@@ -8,9 +8,11 @@ import (
 
 type PagePartialRow struct {
 	gorm.Model
-	PagePartialID   uint           `gorm:"not null"`
-	NoGutters       bool           `gorm:"not null;default:false"`
-	Dense           bool           `gorm:"not null;default:false"`
+	PagePartialID   uint `gorm:"not null"`
+	Position        uint `gorm:"not null"`
+	NoGutters       bool `gorm:"not null;default:false"`
+	Dense           bool `gorm:"not null;default:false"`
+	Hashtag         sql.NullString
 	Align           sql.NullString `gorm:"size:32"`
 	AlignXxl        sql.NullString `gorm:"size:32"`
 	AlignXl         sql.NullString `gorm:"size:32"`
