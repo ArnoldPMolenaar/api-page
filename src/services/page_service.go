@@ -68,6 +68,34 @@ func IsPageDeleted(menuItemID uint, locale string) (bool, error) {
 	return anyDeleted, nil
 }
 
+// IsPagePartialDeleted method to check if a page partial is deleted by its ID.
+func IsPagePartialDeleted(partialID uint) (bool, error) {
+	partial := &models.PagePartial{}
+	if result := database.Pg.Unscoped().Find(partial, "id = ?", partialID); result.Error != nil {
+		return false, result.Error
+	}
+
+	return partial.DeletedAt.Valid, nil
+}
+
+// GetPage retrieves a Page by MenuItemID and Locale.
+func GetPage(menuItemID uint, locale string) (*models.Page, error) {
+	page := &models.Page{}
+
+	if isPageDeleted, err := IsPageDeleted(menuItemID, locale); err != nil {
+		return nil, err
+	} else if isPageDeleted {
+		// If the page is deleted, we should not retrieve it.
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	if result := database.Pg.Find(page, "menu_item_id = ? AND locale = ?", menuItemID, locale); result.Error != nil {
+		return nil, result.Error
+	}
+
+	return page, nil
+}
+
 // GetOrCreatePage retrieves a Page by MenuItemID and Locale. If it doesn't exist, it creates a new one.
 func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 	page := &models.Page{
@@ -87,8 +115,10 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 		Preload("Indexing").
 		Preload("Partials", func(db *gorm.DB) *gorm.DB {
 			return db.Preload("Rows", func(db2 *gorm.DB) *gorm.DB {
-				return db2.Preload("Columns").Order("position asc")
-			}).Order("position asc")
+				return db2.Preload("Columns", func(db3 *gorm.DB) *gorm.DB {
+					return db3.Preload("Module").Order("position asc")
+				}).Order("position asc")
+			})
 		}).
 		FirstOrCreate(page, page)
 	if result.Error != nil {
@@ -96,6 +126,23 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 	}
 
 	return page, nil
+}
+
+// GetPartialByID retrieves a PagePartial by its ID, including its associated rows and columns.
+func GetPartialByID(partialID uint) (*models.PagePartial, error) {
+	partial := &models.PagePartial{}
+
+	if result := database.Pg.
+		Preload("Rows", func(db *gorm.DB) *gorm.DB {
+			return db.Preload("Columns", func(db2 *gorm.DB) *gorm.DB {
+				return db2.Preload("Module").Order("position asc")
+			}).Order("position asc")
+		}).
+		Find(partial, "id = ?", partialID); result.Error != nil {
+		return nil, result.Error
+	}
+
+	return partial, nil
 }
 
 // CreatePagePartial creates a new PagePartial for the given Page using data from the CreatePagePartial request.
@@ -185,9 +232,9 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 	return page, nil
 }
 
-// UpdatePagePartials updates the given PagePartial and its associated rows and columns
+// UpdatePagePartial updates the given PagePartial and its associated rows and columns
 // based on the data provided in the UpdatePagePartial request.
-func UpdatePagePartials(partial *models.PagePartial, dtoPartial *requests.UpdatePagePartial) (*models.PagePartial, error) {
+func UpdatePagePartial(partial *models.PagePartial, dtoPartial *requests.UpdatePagePartial) (*models.PagePartial, error) {
 	partial.Name = dtoPartial.Name
 
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {

@@ -1,5 +1,7 @@
 package requests
 
+import "time"
+
 type UpdatePage struct {
 	Plugin          *string        `json:"plugin"`
 	Name            string         `json:"name" validate:"required"`
@@ -9,5 +11,6 @@ type UpdatePage struct {
 	NewTabEnabled   bool           `json:"newTabEnabled"`
 	UrlEnabled      bool           `json:"urlEnabled"`
 	Url             *string        `json:"url"`
+	UpdatedAt       time.Time      `json:"updatedAt" validate:"required"`
 	Indexing        []PageIndexing `json:"indexing" validate:"required,dive"`
 }

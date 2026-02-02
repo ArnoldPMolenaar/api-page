@@ -38,4 +38,15 @@ func PrivateRoutes(a *fiber.App) {
 	menus.Put("/:id", middleware.MachineProtected(), controllers.UpdateMenu)
 	menus.Delete("/:id", middleware.MachineProtected(), controllers.DeleteMenu)
 	menus.Put("/:id/restore", middleware.MachineProtected(), controllers.RestoreMenu)
+
+	// Register route group for /v1/pages.
+	pages := route.Group("/pages")
+	pages.Get("/:menuItemId/:locale", middleware.MachineProtected(), controllers.GetOrCreatePageByID)
+	pages.Put("/:menuItemId/:locale", middleware.MachineProtected(), controllers.UpdatePage)
+	pages.Delete("/:menuItemId/:locale", middleware.MachineProtected(), controllers.DeletePage)
+	pages.Put("/:menuItemId/:locale/restore", middleware.MachineProtected(), controllers.RestorePage)
+	pages.Post("/:menuItemId/:locale/partials", middleware.MachineProtected(), controllers.CreatePagePartial)
+	pages.Put("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.UpdatePagePartial)
+	pages.Delete("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.DeletePagePartial)
+	pages.Put("/:menuItemId/:locale/partials/:id/restore", middleware.MachineProtected(), controllers.RestorePagePartial)
 }

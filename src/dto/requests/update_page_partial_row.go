@@ -1,5 +1,7 @@
 package requests
 
+import "time"
+
 type UpdatePagePartialRow struct {
 	ID        *uint `json:"id"`
 	PartialID uint  `json:"partialId" validate:"required"`
@@ -26,5 +28,6 @@ type UpdatePagePartialRow struct {
 	JustifyLg       *string                      `json:"justifyLg"`
 	JustifyMd       *string                      `json:"justifyMd"`
 	JustifySm       *string                      `json:"justifySm"`
+	UpdatedAt       *time.Time                   `json:"updatedAt"`
 	Columns         []UpdatePagePartialRowColumn `json:"columns" validate:"required,min=1,dive"`
 }
