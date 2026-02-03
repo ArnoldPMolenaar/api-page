@@ -4,7 +4,7 @@ import "time"
 
 type UpdatePagePartialRowColumn struct {
 	ID       *uint `json:"id" `
-	RowID    uint  `json:"rowId" validate:"required"`
+	RowID    *uint `json:"rowId"`
 	ModuleID *uint `json:"moduleId"`
 	// Use a pointer to uint for Position to allow zero value and required validation.
 	Position  *uint      `json:"position" validate:"required"`

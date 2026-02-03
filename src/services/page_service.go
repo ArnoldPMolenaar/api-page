@@ -18,7 +18,7 @@ func IsPagePartialNameAvailable(menuItemID uint, locale, name string, ignore *st
 	if ignore != nil {
 		result = query.Find(&models.PagePartial{}, "menu_item_id = ? AND locale = ? AND name = ? AND name != ?", menuItemID, locale, name, ignore)
 	} else {
-		result = query.Find(&models.Menu{}, "menu_item_id = ? AND locale = ? AND name = ?", menuItemID, locale, name)
+		result = query.Find(&models.PagePartial{}, "menu_item_id = ? AND locale = ? AND name = ?", menuItemID, locale, name)
 	}
 
 	if result.Error != nil {
@@ -65,6 +65,7 @@ func IsPageDeleted(menuItemID uint, locale string) (bool, error) {
 	if err := row.Scan(&anyDeleted); err != nil {
 		return false, err
 	}
+
 	return anyDeleted, nil
 }
 
@@ -86,7 +87,7 @@ func GetPage(menuItemID uint, locale string) (*models.Page, error) {
 		return nil, err
 	} else if isPageDeleted {
 		// If the page is deleted, we should not retrieve it.
-		return nil, gorm.ErrRecordNotFound
+		return page, nil
 	}
 
 	if result := database.Pg.Find(page, "menu_item_id = ? AND locale = ?", menuItemID, locale); result.Error != nil {
@@ -98,18 +99,18 @@ func GetPage(menuItemID uint, locale string) (*models.Page, error) {
 
 // GetOrCreatePage retrieves a Page by MenuItemID and Locale. If it doesn't exist, it creates a new one.
 func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
-	page := &models.Page{
-		MenuItemID: menuItemID,
-		Locale:     locale,
-		Name:       "",
-	}
+	page := &models.Page{}
 
 	if isPageDeleted, err := IsPageDeleted(menuItemID, locale); err != nil {
 		return nil, err
 	} else if isPageDeleted {
 		// If the page is deleted, we should not retrieve or create it.
-		return nil, gorm.ErrRecordNotFound
+		return page, nil
 	}
+
+	page.MenuItemID = menuItemID
+	page.Locale = locale
+	page.Name = ""
 
 	result := database.Pg.
 		Preload("Indexing").
@@ -183,6 +184,7 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 		if err := tx.Model(&page).
 			Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 			Updates(page).Error; err != nil {
+			tx.Rollback()
 			return err
 		}
 
@@ -222,8 +224,6 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 			}
 		}
 
-		tx.Commit()
-
 		return nil
 	}); err != nil {
 		return nil, err
@@ -241,6 +241,7 @@ func UpdatePagePartial(partial *models.PagePartial, dtoPartial *requests.UpdateP
 		if err := tx.Model(&partial).
 			Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 			Updates(partial).Error; err != nil {
+			tx.Rollback()
 			return err
 		}
 
@@ -392,8 +393,6 @@ func UpdatePagePartial(partial *models.PagePartial, dtoPartial *requests.UpdateP
 				}
 			}
 		}
-
-		tx.Commit()
 
 		return nil
 	}); err != nil {

@@ -27,6 +27,8 @@ func GetOrCreatePageByID(c *fiber.Ctx) error {
 	page, err := services.GetOrCreatePage(menuItemID, locale)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if page.MenuItemID == 0 {
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page could not be created for the specified menu item and locale.")
 	}
 
 	response := responses.Page{}
@@ -66,7 +68,7 @@ func CreatePagePartial(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if page.MenuItemID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PageExists, "Page not found for the specified menu item and locale.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
 	}
 
 	// Check if partial name exists.
@@ -120,7 +122,7 @@ func UpdatePage(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if oldPage.MenuItemID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PageExists, "Page not found for the specified menu item and locale.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
 	}
 
 	// Check if the page has been modified since it was last fetched.
@@ -177,7 +179,7 @@ func UpdatePagePartial(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if page.MenuItemID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PageExists, "Page not found for the specified menu item and locale.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
 	}
 
 	// Get old partial.
@@ -185,7 +187,7 @@ func UpdatePagePartial(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if oldPartial.ID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PagePartialAvailable, "Partial does not exist for the specified ID.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PagePartialAvailable, "Partial does not exist for the specified ID.")
 	}
 
 	// Check if the partial has been modified since it was last fetched.
@@ -232,7 +234,7 @@ func DeletePage(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if page.MenuItemID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PageExists, "Page not found for the specified menu item and locale.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
 	}
 
 	// Delete the Page.
@@ -265,7 +267,7 @@ func DeletePagePartial(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if page.MenuItemID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PageExists, "Page not found for the specified menu item and locale.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
 	}
 
 	// Get old partial.
@@ -273,7 +275,7 @@ func DeletePagePartial(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if oldPartial.ID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PagePartialAvailable, "Partial does not exist for the specified ID.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PagePartialAvailable, "Partial does not exist for the specified ID.")
 	}
 
 	// Delete the Partial.
@@ -333,7 +335,7 @@ func RestorePagePartial(c *fiber.Ctx) error {
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if page.MenuItemID == 0 {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.PageExists, "Page not found for the specified menu item and locale.")
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
 	}
 
 	// Check if partial is deleted.
