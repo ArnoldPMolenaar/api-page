@@ -200,6 +200,10 @@ func UpdateVersion(c *fiber.Ctx) error {
 		}
 	}
 
+	if oldVersion.PublishedAt.Valid && versionRequest.EnabledAt == nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.VersionIsPublished, "Published versions must be enabled.")
+	}
+
 	// Update version.
 	updatedVersion, err := services.UpdateVersion(*oldVersion, versionRequest)
 	if err != nil {
