@@ -152,7 +152,11 @@ func GetMenusByVersionID(versionID uint, locale string) (*[]models.Menu, error) 
 				return db2.Preload("Pages", func(db3 *gorm.DB) *gorm.DB {
 					return db3.Where("locale = ? AND enabled_at IS NOT NULL", locale)
 				}).Where("enabled_at IS NOT NULL")
-			}).Order("menu_item_parent_id NULLS FIRST").Order("position ASC")
+			}).
+				Joins("JOIN menu_items mi ON mi.id = menu_item_relations.menu_item_child_id").
+				Joins("JOIN pages p ON p.menu_item_id = mi.id AND p.locale = ? AND p.enabled_at IS NOT NULL", locale).
+				Order("menu_item_parent_id NULLS FIRST").
+				Order("position ASC")
 		}).
 		Find(&menus, "version_id = ?", versionID); result.Error != nil {
 		return nil, result.Error
