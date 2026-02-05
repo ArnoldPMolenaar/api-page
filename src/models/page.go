@@ -18,6 +18,7 @@ type Page struct {
 	NewTabEnabled   bool `gorm:"not null;default:false"`
 	UrlEnabled      bool `gorm:"not null;default:false"`
 	Url             sql.NullString
+	EnabledAt       sql.NullTime
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	DeletedAt       gorm.DeletedAt `gorm:"index"`

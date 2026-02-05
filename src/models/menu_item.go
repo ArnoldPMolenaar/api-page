@@ -16,4 +16,5 @@ type MenuItem struct {
 	// Relationships.
 	Version  Version            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:VersionID;references:ID"`
 	Indexing []MenuItemIndexing `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:MenuItemID;references:ID"`
+	Pages    []Page             `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:MenuItemID;references:ID"`
 }

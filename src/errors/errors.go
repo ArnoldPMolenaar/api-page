@@ -7,6 +7,7 @@ const (
 	VersionAvailable     = "versionAvailable"
 	VersionNotEnabled    = "versionNotEnabled"
 	VersionIsPublished   = "versionIsPublished"
+	VersionNotPublished  = "versionNotPublished"
 	MenuExists           = "menuExists"
 	MenuAvailable        = "menuAvailable"
 	PageExists           = "pageExists"

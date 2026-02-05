@@ -11,6 +11,7 @@ type UpdatePage struct {
 	NewTabEnabled   bool           `json:"newTabEnabled"`
 	UrlEnabled      bool           `json:"urlEnabled"`
 	Url             *string        `json:"url"`
+	EnabledAt       *time.Time     `json:"enabledAt"`
 	UpdatedAt       time.Time      `json:"updatedAt" validate:"required"`
 	Indexing        []PageIndexing `json:"indexing" validate:"required,dive"`
 }

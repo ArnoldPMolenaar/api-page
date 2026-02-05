@@ -178,6 +178,7 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 	page.MetaDescription = utils.NewNullString(request.MetaDescription)
 	page.Hashtag = utils.NewNullString(request.Hashtag)
 	page.Url = utils.NewNullString(request.Url)
+	page.EnabledAt = utils.NewNullTime(request.EnabledAt)
 	page.Indexing = make([]models.PageIndexing, 0)
 
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {

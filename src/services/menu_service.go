@@ -142,14 +142,33 @@ func GetMenuLookup(versionID uint, name *string) (*[]models.Menu, error) {
 	return &menus, nil
 }
 
+// GetMenusByVersionID method to get menus by version ID and locale.
+func GetMenusByVersionID(versionID uint, locale string) (*[]models.Menu, error) {
+	menus := make([]models.Menu, 0)
+
+	if result := database.Pg.
+		Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
+			return db.Preload("MenuItemChild", func(db2 *gorm.DB) *gorm.DB {
+				return db2.Preload("Pages", func(db3 *gorm.DB) *gorm.DB {
+					return db3.Where("locale = ? AND enabled_at IS NOT NULL", locale)
+				}).Where("enabled_at IS NOT NULL")
+			}).Order("menu_item_parent_id NULLS FIRST").Order("position ASC")
+		}).
+		Find(&menus, "version_id = ?", versionID); result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &menus, nil
+}
+
 // GetMenuByID method to get a menu by ID.
 func GetMenuByID(menuID uint) (*models.Menu, error) {
 	menu := &models.Menu{}
 
 	if result := database.Pg.
 		Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
-			return db.Preload("MenuItemParent", func(db *gorm.DB) *gorm.DB { return db.Preload("Indexing") }).
-				Preload("MenuItemChild", func(db *gorm.DB) *gorm.DB { return db.Preload("Indexing") }).
+			return db.Preload("MenuItemParent", func(db2 *gorm.DB) *gorm.DB { return db2.Preload("Indexing") }).
+				Preload("MenuItemChild", func(db2 *gorm.DB) *gorm.DB { return db2.Preload("Indexing") }).
 				Order("menu_item_parent_id NULLS FIRST").
 				Order("position ASC")
 		}).

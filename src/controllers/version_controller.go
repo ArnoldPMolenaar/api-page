@@ -86,6 +86,36 @@ func GetPublishedVersionByAppName(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
+// GetMenusByVersionID func for getting menus by version ID.
+func GetMenusByVersionID(c *fiber.Ctx) error {
+	versionIDParam := c.Params("id")
+	versionID, err := util.StringToUint(versionIDParam)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	locale := c.Query("locale")
+	if locale == "" {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "Locale parameter is required.")
+	}
+
+	if isPublished, err := services.IsVersionPublished(versionID); err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if !isPublished {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.VersionNotPublished, "Version is not published.")
+	}
+
+	menus, err := services.GetMenusByVersionID(versionID, locale)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	}
+
+	response := responses.PublishedMenuList{}
+	response.SetMenuList(menus)
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
 // IsVersionNameAvailable method to check if version is available.
 func IsVersionNameAvailable(c *fiber.Ctx) error {
 	app := c.Query("app")

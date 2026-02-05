@@ -14,4 +14,5 @@ func PublicRoutes(a *fiber.App) {
 	// Register route group for /v1/versions.
 	versions := route.Group("/versions")
 	versions.Get("/publish", controllers.GetPublishedVersionByAppName)
+	versions.Get("/:id/menus", controllers.GetMenusByVersionID)
 }

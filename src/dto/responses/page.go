@@ -16,6 +16,7 @@ type Page struct {
 	NewTabEnabled   bool           `json:"newTabEnabled"`
 	UrlEnabled      bool           `json:"urlEnabled"`
 	Url             *string        `json:"url"`
+	EnabledAt       *time.Time     `json:"enabledAt"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	UpdatedAt       time.Time      `json:"updatedAt"`
 	Indexing        []PageIndexing `json:"indexing"`
@@ -46,6 +47,9 @@ func (p *Page) SetPage(page *models.Page) {
 	}
 	if page.Url.Valid {
 		p.Url = &page.Url.String
+	}
+	if page.EnabledAt.Valid {
+		p.EnabledAt = &page.EnabledAt.Time
 	}
 
 	p.Indexing = make([]PageIndexing, len(page.Indexing))

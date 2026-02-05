@@ -20,6 +20,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// IsVersionPublished method to check if a version is published.
+func IsVersionPublished(versionID uint) (bool, error) {
+	if result := database.Pg.Limit(1).Find(&models.Version{}, "id = ? AND published_at IS NOT NULL", versionID); result.Error != nil {
+		return false, result.Error
+	} else {
+		return result.RowsAffected == 1, nil
+	}
+}
+
 // IsVersionAvailable method to check if a version is available.
 func IsVersionAvailable(appName, versionName string, ignore *string) (bool, error) {
 	query := database.Pg.Limit(1)
