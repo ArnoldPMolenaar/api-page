@@ -13,5 +13,8 @@ const (
 	PageExists           = "pageExists"
 	PageAvailable        = "pageAvailable"
 	PagePartialAvailable = "pagePartialAvailable"
+	ModuleExists         = "moduleExists"
+	ModuleAvailable      = "moduleAvailable"
+	ModuleTypeNotFound   = "moduleTypeNotFound"
 	// Add more error codes as needed.
 )
