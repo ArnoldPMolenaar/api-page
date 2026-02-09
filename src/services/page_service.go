@@ -126,6 +126,13 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 		return nil, result.Error
 	}
 
+	// Invalidate cache for version menus related to this page.
+	versionID, err := GetVersionIDByMenuItemID(menuItemID)
+	if err != nil {
+		return nil, err
+	}
+	_ = deleteVersionMenusFromCache(versionID, locale)
+
 	return page, nil
 }
 
@@ -229,6 +236,13 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 	}); err != nil {
 		return nil, err
 	}
+
+	// Invalidate cache for version menus related to this page.
+	versionID, err := GetVersionIDByMenuItemID(page.MenuItemID)
+	if err != nil {
+		return nil, err
+	}
+	_ = deleteVersionMenusFromCache(versionID, page.Locale)
 
 	return page, nil
 }

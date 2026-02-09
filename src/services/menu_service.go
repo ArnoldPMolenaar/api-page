@@ -146,20 +146,34 @@ func GetMenuLookup(versionID uint, name *string) (*[]models.Menu, error) {
 func GetMenusByVersionID(versionID uint, locale string) (*[]models.Menu, error) {
 	menus := make([]models.Menu, 0)
 
-	if result := database.Pg.
-		Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
-			return db.Preload("MenuItemChild", func(db2 *gorm.DB) *gorm.DB {
-				return db2.Preload("Pages", func(db3 *gorm.DB) *gorm.DB {
-					return db3.Where("locale = ? AND enabled_at IS NOT NULL", locale)
-				}).Where("enabled_at IS NOT NULL")
+	if inCache, err := isVersionMenusInCache(versionID); err != nil {
+		return nil, err
+	} else if inCache {
+		if cacheMenus, err := getVersionMenusFromCache(versionID, locale); err != nil {
+			return nil, err
+		} else if cacheMenus != nil && len(*cacheMenus) > 0 {
+			menus = *cacheMenus
+		}
+	}
+
+	if len(menus) == 0 {
+		if result := database.Pg.
+			Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
+				return db.Preload("MenuItemChild", func(db2 *gorm.DB) *gorm.DB {
+					return db2.Preload("Pages", func(db3 *gorm.DB) *gorm.DB {
+						return db3.Where("locale = ? AND enabled_at IS NOT NULL", locale)
+					}).Where("enabled_at IS NOT NULL")
+				}).
+					Joins("JOIN menu_items mi ON mi.id = menu_item_relations.menu_item_child_id").
+					Joins("JOIN pages p ON p.menu_item_id = mi.id AND p.locale = ? AND p.enabled_at IS NOT NULL", locale).
+					Order("menu_item_parent_id NULLS FIRST").
+					Order("position ASC")
 			}).
-				Joins("JOIN menu_items mi ON mi.id = menu_item_relations.menu_item_child_id").
-				Joins("JOIN pages p ON p.menu_item_id = mi.id AND p.locale = ? AND p.enabled_at IS NOT NULL", locale).
-				Order("menu_item_parent_id NULLS FIRST").
-				Order("position ASC")
-		}).
-		Find(&menus, "version_id = ?", versionID); result.Error != nil {
-		return nil, result.Error
+			Find(&menus, "version_id = ?", versionID); result.Error != nil {
+			return nil, result.Error
+		}
+
+		_ = setVersionMenusToCache(versionID, locale, &menus)
 	}
 
 	return &menus, nil
@@ -181,6 +195,17 @@ func GetMenuByID(menuID uint) (*models.Menu, error) {
 	}
 
 	return menu, nil
+}
+
+// GetVersionIDByMenuItemID method to get version ID by menu item ID.
+func GetVersionIDByMenuItemID(menuItemID uint) (uint, error) {
+	var versionID uint
+
+	if result := database.Pg.Model(&models.MenuItem{}).Where("id = ?", menuItemID).Pluck("version_id", &versionID); result.Error != nil {
+		return 0, result.Error
+	}
+
+	return versionID, nil
 }
 
 // CreateMenu method to create a menu.
@@ -212,6 +237,7 @@ func CreateMenu(menu *requests.CreateMenu) (*models.Menu, error) {
 	}
 
 	_ = deleteMenusLookupFromCache(m.VersionID)
+	_ = deleteAllVersionMenusFromCache(m.VersionID)
 
 	return result, nil
 }
@@ -243,6 +269,7 @@ func UpdateMenu(oldMenu *models.Menu, menu *requests.UpdateMenu) (*models.Menu, 
 	}
 
 	_ = deleteMenusLookupFromCache(oldMenu.VersionID)
+	_ = deleteAllVersionMenusFromCache(oldMenu.VersionID)
 
 	return oldMenu, nil
 }
@@ -252,6 +279,7 @@ func DeleteMenu(versionID, menuID uint) error {
 	err := database.Pg.Delete(&models.Menu{}, menuID).Error
 	if err == nil {
 		_ = deleteMenusLookupFromCache(versionID)
+		_ = deleteAllVersionMenusFromCache(versionID)
 	}
 
 	return err
@@ -268,6 +296,7 @@ func RestoreMenu(menuID uint) error {
 		}
 
 		_ = deleteMenusLookupFromCache(versionID)
+		_ = deleteAllVersionMenusFromCache(versionID)
 	}
 
 	return err
@@ -337,6 +366,163 @@ func setMenusLookupToCache(versionID uint, menus *[]models.Menu) error {
 // deleteMenusLookupFromCache deletes existing menus from the cache.
 func deleteMenusLookupFromCache(versionID uint) error {
 	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getMenusLookupCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// getVersionMenusCacheKey gets the key for the cache.
+func getVersionMenusCacheKey(versionID uint) string {
+	return fmt.Sprintf("menus:version:%d:locales", versionID)
+}
+
+// isVersionMenusInCache checks if the menus of a version exists in the cache.
+func isVersionMenusInCache(versionID uint) (bool, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Exists().Key(getVersionMenusCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return false, result.Error()
+	}
+
+	value, err := result.ToInt64()
+	if err != nil {
+		return false, err
+	}
+
+	return value == 1, nil
+}
+
+// getAllVersionMenusFromCache gets the menus in a version from the cache.
+func getAllVersionMenusFromCache(versionID uint) (*map[string][]models.Menu, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Get().Key(getVersionMenusCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return nil, result.Error()
+	}
+
+	value, err := result.ToString()
+	if err != nil {
+		return nil, err
+	}
+
+	var versionMenus map[string][]models.Menu
+	if err := json.Unmarshal([]byte(value), &versionMenus); err != nil {
+		return nil, err
+	}
+
+	return &versionMenus, nil
+}
+
+// getVersionMenusFromCache gets the menus in a version with a locale from the cache.
+func getVersionMenusFromCache(versionID uint, locale string) (*[]models.Menu, error) {
+	var versionMenus *map[string][]models.Menu
+
+	if inCache, err := isVersionMenusInCache(versionID); err != nil {
+		return nil, err
+	} else if inCache {
+		if versionMenus, err = getAllVersionMenusFromCache(versionID); err != nil {
+			return nil, err
+		}
+	}
+
+	if versionMenus == nil {
+		return nil, nil
+	}
+
+	if menus, ok := (*versionMenus)[locale]; ok {
+		return &menus, nil
+	}
+
+	return nil, nil
+}
+
+// setVersionMenusToCache sets the menus of a version to the cache.
+func setVersionMenusToCache(versionID uint, locale string, menus *[]models.Menu) error {
+	expiration := os.Getenv("VALKEY_EXPIRATION")
+	duration, err := time.ParseDuration(expiration)
+	if err != nil {
+		return err
+	}
+
+	var versionMenus *map[string][]models.Menu
+
+	if inCache, err := isVersionMenusInCache(versionID); err != nil {
+		return err
+	} else if inCache {
+		if versionMenus, err = getAllVersionMenusFromCache(versionID); err != nil {
+			return err
+		}
+	}
+
+	if versionMenus == nil {
+		versionMenus = &map[string][]models.Menu{}
+		(*versionMenus)[locale] = *menus
+	} else {
+		(*versionMenus)[locale] = *menus
+	}
+
+	value, err := json.Marshal(versionMenus)
+	if err != nil {
+		return err
+	}
+
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Set().Key(getVersionMenusCacheKey(versionID)).Value(valkey.BinaryString(value)).Ex(duration).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deleteVersionMenusFromCache deletes existing menus in a version from the cache.
+func deleteVersionMenusFromCache(versionID uint, locale string) error {
+	var versionMenus *map[string][]models.Menu
+
+	if inCache, err := isVersionMenusInCache(versionID); err != nil {
+		return err
+	} else if inCache {
+		if versionMenus, err = getAllVersionMenusFromCache(versionID); err != nil {
+			return err
+		}
+	}
+
+	if versionMenus == nil {
+		return nil
+	}
+
+	delete(*versionMenus, locale)
+
+	if len(*versionMenus) > 0 {
+		expiration := os.Getenv("VALKEY_EXPIRATION")
+		duration, err := time.ParseDuration(expiration)
+		if err != nil {
+			return err
+		}
+
+		value, err := json.Marshal(versionMenus)
+		if err != nil {
+			return err
+		}
+
+		result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Set().Key(getVersionMenusCacheKey(versionID)).Value(valkey.BinaryString(value)).Ex(duration).Build())
+		if result.Error() != nil {
+			return result.Error()
+		}
+
+		return nil
+	}
+
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getVersionMenusCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deleteAllVersionMenusFromCache deletes existing menus in a version for all languages from the cache.
+func deleteAllVersionMenusFromCache(versionID uint) error {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getVersionMenusCacheKey(versionID)).Build())
 	if result.Error() != nil {
 		return result.Error()
 	}
