@@ -12,6 +12,30 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func GetPublishedPageByID(c *fiber.Ctx) error {
+	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	locale := c.Params("locale")
+	if locale == "" {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "Locale parameter is required.")
+	}
+
+	page, err := services.GetPublishedPage(menuItemID, locale)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if page.MenuItemID == 0 {
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Published page not found for the specified menu item and locale.")
+	}
+
+	response := responses.PublishedPage{}
+	response.SetPage(page)
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
 // GetOrCreatePageByID func for getting or creating a page.
 func GetOrCreatePageByID(c *fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
@@ -205,7 +229,7 @@ func UpdatePagePartial(c *fiber.Ctx) error {
 	}
 
 	// Update partial.
-	updatedPartial, err := services.UpdatePagePartial(oldPartial, partialRequest)
+	updatedPartial, err := services.UpdatePagePartial(page.MenuItemID, page.Locale, oldPartial, partialRequest)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
@@ -279,7 +303,7 @@ func DeletePagePartial(c *fiber.Ctx) error {
 	}
 
 	// Delete the Partial.
-	if err := services.DeletePagePartial(partialID); err != nil {
+	if err := services.DeletePagePartial(page.MenuItemID, page.Locale, partialID); err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
 

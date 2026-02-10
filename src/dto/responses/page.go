@@ -6,7 +6,7 @@ import (
 )
 
 type Page struct {
-	MenuItemID      uint           `json:"menuItemID"`
+	MenuItemID      uint           `json:"menuItemId"`
 	Locale          string         `json:"locale"`
 	Plugin          *string        `json:"plugin"`
 	Name            string         `json:"name"`

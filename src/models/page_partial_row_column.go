@@ -35,5 +35,5 @@ type PagePartialRowColumn struct {
 
 	// Relationships.
 	PagePartialRow PagePartialRow `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:PagePartialRowID;references:ID"`
-	Module         Module         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;foreignKey:ModuleID;references:ID"`
+	Module         *Module        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;foreignKey:ModuleID;references:ID"`
 }

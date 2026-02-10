@@ -1,12 +1,19 @@
 package services
 
 import (
+	"api-page/main/src/cache"
 	"api-page/main/src/database"
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/enums"
 	"api-page/main/src/models"
 	"api-page/main/src/utils"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"time"
 
+	"github.com/valkey-io/valkey-go"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -97,6 +104,69 @@ func GetPage(menuItemID uint, locale string) (*models.Page, error) {
 	return page, nil
 }
 
+// GetPublishedPage retrieves a Page by MenuItemID and Locale only if it is enabled (EnabledAt is not null) and not deleted.
+func GetPublishedPage(menuItemID uint, locale string) (*models.Page, error) {
+	page := &models.Page{}
+
+	if inCache, err := isPageInCache(menuItemID, locale); err != nil {
+		return nil, err
+	} else if inCache {
+		if cachePage, err := getPageFromCache(menuItemID, locale); err != nil {
+			return nil, err
+		} else if cachePage != nil {
+			page = cachePage
+		}
+	}
+
+	if page.MenuItemID == 0 {
+		if isPageDeleted, err := IsPageDeleted(menuItemID, locale); err != nil {
+			return nil, err
+		} else if isPageDeleted {
+			// If the page is deleted, we should not retrieve it.
+			return page, nil
+		}
+
+		if result := database.Pg.
+			Preload("Indexing").
+			Preload("Partials", func(db *gorm.DB) *gorm.DB {
+				return db.Preload("Rows", func(db2 *gorm.DB) *gorm.DB {
+					return db2.Preload("Columns", func(db3 *gorm.DB) *gorm.DB {
+						return db3.Preload("Module").Order("position asc")
+					}).Order("position asc")
+				})
+			}).Find(page, "menu_item_id = ? AND locale = ?", menuItemID, locale); result.Error != nil {
+			return nil, result.Error
+		}
+
+		if page.EnabledAt.Valid == false {
+			// If the page is not enabled, we should not retrieve it.
+			return &models.Page{}, nil
+		}
+
+		if len(page.Indexing) == 0 {
+			menuIndexing := make([]models.MenuItemIndexing, 0)
+
+			if result := database.Pg.Find(&menuIndexing, "menu_item_id = ?", menuItemID); result.Error != nil {
+				return nil, result.Error
+			}
+
+			for i := range menuIndexing {
+				pageIndexing := models.PageIndexing{
+					MenuItemID: menuIndexing[i].MenuItemID,
+					Locale:     locale,
+					Option:     menuIndexing[i].Option,
+					Value:      menuIndexing[i].Value,
+				}
+				page.Indexing = append(page.Indexing, pageIndexing)
+			}
+		}
+
+		_ = setPageToCache(menuItemID, locale, page)
+	}
+
+	return page, nil
+}
+
 // GetOrCreatePage retrieves a Page by MenuItemID and Locale. If it doesn't exist, it creates a new one.
 func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 	page := &models.Page{}
@@ -164,6 +234,8 @@ func CreatePagePartial(page *models.Page, request *requests.CreatePagePartial) (
 	if err := database.Pg.FirstOrCreate(partial, partial).Error; err != nil {
 		return nil, err
 	}
+
+	_ = deletePageFromCache(page.MenuItemID, page.Locale)
 
 	return partial, nil
 }
@@ -243,13 +315,14 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 		return nil, err
 	}
 	_ = deleteVersionMenusFromCache(versionID, page.Locale)
+	_ = deletePageFromCache(page.MenuItemID, page.Locale)
 
 	return page, nil
 }
 
 // UpdatePagePartial updates the given PagePartial and its associated rows and columns
 // based on the data provided in the UpdatePagePartial request.
-func UpdatePagePartial(partial *models.PagePartial, dtoPartial *requests.UpdatePagePartial) (*models.PagePartial, error) {
+func UpdatePagePartial(menuItemID uint, locale string, partial *models.PagePartial, dtoPartial *requests.UpdatePagePartial) (*models.PagePartial, error) {
 	partial.Name = dtoPartial.Name
 
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
@@ -414,24 +487,36 @@ func UpdatePagePartial(partial *models.PagePartial, dtoPartial *requests.UpdateP
 		return nil, err
 	}
 
+	_ = deletePageFromCache(menuItemID, locale)
+
 	return partial, nil
 }
 
 // DeletePage method to delete a page.
-func DeletePage(MenuItemID uint, Locale string) error {
-	return database.Pg.Delete(&models.Page{MenuItemID: MenuItemID, Locale: Locale}).Error
+func DeletePage(menuItemID uint, locale string) error {
+	err := database.Pg.Delete(&models.Page{MenuItemID: menuItemID, Locale: locale}).Error
+	if err == nil {
+		_ = deletePageFromCache(menuItemID, locale)
+	}
+
+	return err
 }
 
 // DeletePagePartial method to delete a page partial by its ID.
-func DeletePagePartial(partialID uint) error {
-	return database.Pg.Delete(&models.PagePartial{}, partialID).Error
+func DeletePagePartial(menuItemID uint, locale string, partialID uint) error {
+	err := database.Pg.Delete(&models.PagePartial{}, partialID).Error
+	if err == nil {
+		_ = deletePageFromCache(menuItemID, locale)
+	}
+
+	return err
 }
 
 // RestorePage method to restore a deleted page.
-func RestorePage(MenuItemID uint, Locale string) error {
+func RestorePage(menuItemID uint, locale string) error {
 	return database.Pg.Unscoped().
 		Model(&models.Page{}).
-		Where("menu_item_id = ? AND locale = ?", MenuItemID, Locale).
+		Where("menu_item_id = ? AND locale = ?", menuItemID, locale).
 		Update("deleted_at", nil).Error
 }
 
@@ -441,4 +526,91 @@ func RestorePagePartial(partialID uint) error {
 		Model(&models.PagePartial{}).
 		Where("id = ?", partialID).
 		Update("deleted_at", nil).Error
+}
+
+// getPageCacheKey gets the key for the cache.
+func getPageCacheKey(menuItemID uint, locale string) string {
+	return fmt.Sprintf("pages:%d:%s", menuItemID, locale)
+}
+
+// isPageInCache checks if the page exists in the cache.
+func isPageInCache(menuItemID uint, locale string) (bool, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Exists().Key(getPageCacheKey(menuItemID, locale)).Build())
+	if result.Error() != nil {
+		return false, result.Error()
+	}
+
+	value, err := result.ToInt64()
+	if err != nil {
+		return false, err
+	}
+
+	return value == 1, nil
+}
+
+// getPageFromCache gets the page from the cache.
+func getPageFromCache(menuItemID uint, locale string) (*models.Page, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Get().Key(getPageCacheKey(menuItemID, locale)).Build())
+	if result.Error() != nil {
+		return nil, result.Error()
+	}
+
+	value, err := result.ToString()
+	if err != nil {
+		return nil, err
+	}
+
+	var page models.Page
+	if err := json.Unmarshal([]byte(value), &page); err != nil {
+		return nil, err
+	}
+
+	return &page, nil
+}
+
+// setPageToCache sets the page to the cache.
+func setPageToCache(menuItemID uint, locale string, page *models.Page) error {
+	value, err := json.Marshal(page)
+	if err != nil {
+		return err
+	}
+
+	expiration := os.Getenv("VALKEY_EXPIRATION")
+	duration, err := time.ParseDuration(expiration)
+	if err != nil {
+		return err
+	}
+
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Set().Key(getPageCacheKey(menuItemID, locale)).Value(valkey.BinaryString(value)).Ex(duration).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deletePageFromCache deletes existing page from the cache.
+func deletePageFromCache(menuItemID uint, locale string) error {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getPageCacheKey(menuItemID, locale)).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deletePagesFromCacheByMenuItemID deletes all pages related to a menu item from the cache by the menu item ID.
+func deletePagesFromCacheByMenuItemID(menuItemID uint) error {
+	var locales []string
+	if result := database.Pg.Model(&models.Page{}).Where("menu_item_id = ?", menuItemID).Pluck("locale", &locales); result.Error != nil {
+		return result.Error
+	}
+
+	for i := range locales {
+		if err := deletePageFromCache(menuItemID, locales[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

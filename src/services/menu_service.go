@@ -659,6 +659,9 @@ func upsertMenuItem(tx *gorm.DB, menu *models.Menu, dto *requests.UpdateMenuItem
 		if err := tx.Save(mi).Error; err != nil {
 			return nil, err
 		}
+		if err := deletePagesFromCacheByMenuItemID(mi.ID); err != nil {
+			return nil, err
+		}
 	} else {
 		mi = &models.MenuItem{VersionID: menu.VersionID, Name: dto.Name}
 		if dto.Icon != nil {
