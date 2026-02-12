@@ -134,7 +134,7 @@ func GetPublishedPage(menuItemID uint, locale string) (*models.Page, error) {
 						return db3.Preload("Module").Order("position asc")
 					}).Order("position asc")
 				})
-			}).Find(page, "menu_item_id = ? AND locale = ?", menuItemID, locale); result.Error != nil {
+			}).Find(page, "menu_item_id = ? AND locale = ? AND enabled_at IS NOT NULL", menuItemID, locale); result.Error != nil {
 			return nil, result.Error
 		}
 
