@@ -49,6 +49,22 @@ func IsMenuDeleted(menuID uint) (bool, error) {
 	}
 }
 
+// IsMenuItemWithAppName method to check if a menu item belongs to a version with the given app name.
+func IsMenuItemWithAppName(menuItemID uint, appName string) (bool, error) {
+	var count int64
+
+	if result := database.Pg.Model(&models.MenuItem{}).
+		Joins("JOIN menu_item_relations ON menu_item_relations.menu_item_child_id = menu_items.id").
+		Joins("JOIN menus ON menus.id = menu_item_relations.menu_id").
+		Joins("JOIN versions ON versions.id = menus.version_id").
+		Where("menu_items.id = ? AND versions.app_name = ?", menuItemID, appName).
+		Count(&count); result.Error != nil {
+		return false, result.Error
+	}
+
+	return count > 0, nil
+}
+
 // GetMenus method to get paginated menus.
 func GetMenus(c *fiber.Ctx) (*pagination.Model, error) {
 	menus := make([]models.Menu, 0)

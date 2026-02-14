@@ -39,6 +39,10 @@ func PrivateRoutes(a *fiber.App) {
 	menus.Delete("/:id", middleware.MachineProtected(), controllers.DeleteMenu)
 	menus.Put("/:id/restore", middleware.MachineProtected(), controllers.RestoreMenu)
 
+	// Register route group for /v1/menu-items.
+	menuItems := route.Group("/menu-items")
+	menuItems.Get("/:id/app/available", middleware.MachineProtected(), controllers.IsMenuItemWithAppNameAvailable)
+
 	// Register route group for /v1/pages.
 	pages := route.Group("/pages")
 	pages.Get("/:menuItemId/:locale", middleware.MachineProtected(), controllers.GetOrCreatePageByID)

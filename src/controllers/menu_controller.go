@@ -102,6 +102,28 @@ func IsMenuNameAvailable(c *fiber.Ctx) error {
 	}
 }
 
+// IsMenuItemWithAppNameAvailable method to check if menu item with app name is available.
+func IsMenuItemWithAppNameAvailable(c *fiber.Ctx) error {
+	menuItemID, err := util.StringToUint(c.Params("id"))
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	appName := c.Query("app")
+	if appName == "" {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.MissingRequiredParam, "App name is required.")
+	}
+
+	if available, err := services.IsMenuItemWithAppName(menuItemID, appName); err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else {
+		response := responses.Available{}
+		response.SetAvailable(available)
+
+		return c.JSON(response)
+	}
+}
+
 // CreateMenu func for creating a menu.
 func CreateMenu(c *fiber.Ctx) error {
 	// Create a new menu struct for the request.
