@@ -60,13 +60,14 @@ func GetVersions(c *fiber.Ctx) (*pagination.Model, error) {
 	versions := make([]models.Version, 0)
 	values := c.Request().URI().QueryArgs()
 	allowedColumns := map[string]bool{
-		"id":         true,
-		"publish_id": true,
-		"app_name":   true,
-		"name":       true,
-		"enabled_at": true,
-		"created_at": true,
-		"updated_at": true,
+		"id":           true,
+		"publish_id":   true,
+		"app_name":     true,
+		"name":         true,
+		"enabled_at":   true,
+		"published_at": true,
+		"created_at":   true,
+		"updated_at":   true,
 	}
 
 	queryFunc := pagination.Query(values, allowedColumns)
