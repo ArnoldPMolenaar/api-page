@@ -11,7 +11,6 @@ import (
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 )
 
 // GetMenu func for getting all menus paginated.
@@ -319,7 +318,6 @@ func isMenuItemsOutOfSync(menuItems *[]models.MenuItemRelation, requestItems *[]
 		if flattenItems[i].ID != nil {
 			if updatedAt, exists := relations[*flattenItems[i].ID]; exists {
 				if flattenItems[i].UpdatedAt.Unix() < updatedAt.Unix() {
-					log.Debug(*flattenItems[i].ID)
 					return true
 				}
 			}
