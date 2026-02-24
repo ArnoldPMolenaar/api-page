@@ -370,7 +370,7 @@ func RestorePagePartial(c *fiber.Ctx) error {
 	}
 
 	// Restore the partial.
-	if err := services.RestorePagePartial(partialID); err != nil {
+	if err := services.RestorePagePartial(menuItemID, locale, partialID); err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
 

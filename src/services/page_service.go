@@ -521,11 +521,16 @@ func RestorePage(menuItemID uint, locale string) error {
 }
 
 // RestorePagePartial method to restore a deleted page partial by its ID.
-func RestorePagePartial(partialID uint) error {
-	return database.Pg.Unscoped().
+func RestorePagePartial(menuItemID uint, locale string, partialID uint) error {
+	err := database.Pg.Unscoped().
 		Model(&models.PagePartial{}).
 		Where("id = ?", partialID).
 		Update("deleted_at", nil).Error
+	if err == nil {
+		_ = deletePageFromCache(menuItemID, locale)
+	}
+
+	return err
 }
 
 // getPageCacheKey gets the key for the cache.
