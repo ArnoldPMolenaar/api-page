@@ -196,6 +196,20 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 		return nil, result.Error
 	}
 
+	if page.Name == "" && len(page.Partials) == 0 {
+		partial := &models.PagePartial{
+			MenuItemID: page.MenuItemID,
+			Locale:     page.Locale,
+			Name:       "Default",
+		}
+
+		if err := database.Pg.FirstOrCreate(partial, partial).Error; err != nil {
+			return nil, err
+		}
+
+		page.Partials = append(page.Partials, *partial)
+	}
+
 	// Invalidate cache for version menus related to this page.
 	versionID, err := GetVersionIDByMenuItemID(menuItemID)
 	if err != nil {
