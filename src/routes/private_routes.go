@@ -50,6 +50,7 @@ func PrivateRoutes(a *fiber.App) {
 	pages.Delete("/:menuItemId/:locale", middleware.MachineProtected(), controllers.DeletePage)
 	pages.Put("/:menuItemId/:locale/restore", middleware.MachineProtected(), controllers.RestorePage)
 	pages.Post("/:menuItemId/:locale/partials", middleware.MachineProtected(), controllers.CreatePagePartial)
+	pages.Get("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.GetPartialByID)
 	pages.Put("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.UpdatePagePartial)
 	pages.Delete("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.DeletePagePartial)
 	pages.Put("/:menuItemId/:locale/partials/:id/restore", middleware.MachineProtected(), controllers.RestorePagePartial)

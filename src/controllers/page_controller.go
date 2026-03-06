@@ -61,6 +61,44 @@ func GetOrCreatePageByID(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
+// GetPartialByID func for getting a page partial by its ID.
+func GetPartialByID(c *fiber.Ctx) error {
+	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	locale := c.Params("locale")
+	if locale == "" {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "Locale parameter is required.")
+	}
+
+	partialID, err := util.StringToUint(c.Params("id"))
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	// Get page to check if it exists.
+	page, err := services.GetPage(menuItemID, locale)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if page.MenuItemID == 0 {
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PageExists, "Page not found for the specified menu item and locale.")
+	}
+
+	partial, err := services.GetPartialByID(partialID)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if partial.ID == 0 {
+		return errorutil.Response(c, fiber.StatusNotFound, errors.PagePartialAvailable, "Partial does not exist for the specified ID.")
+	}
+
+	response := responses.PagePartial{}
+	response.SetPagePartial(partial)
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
 // CreatePagePartial func for creating a page partial.
 func CreatePagePartial(c *fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
