@@ -86,6 +86,19 @@ func IsPagePartialDeleted(partialID uint) (bool, error) {
 	return partial.DeletedAt.Valid, nil
 }
 
+// IsLastEnabledPagePartial method to check if the page partial is the last enabled partial for the given menu item and locale.
+func IsLastEnabledPagePartial(menuItemID uint, locale string) (bool, error) {
+	var count int64
+
+	if result := database.Pg.Model(&models.PagePartial{}).
+		Where("menu_item_id = ? AND locale = ?", menuItemID, locale).
+		Count(&count); result.Error != nil {
+		return false, result.Error
+	}
+
+	return count == 1, nil
+}
+
 // GetPage retrieves a Page by MenuItemID and Locale.
 func GetPage(menuItemID uint, locale string) (*models.Page, error) {
 	page := &models.Page{}

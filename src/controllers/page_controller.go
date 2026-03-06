@@ -286,6 +286,13 @@ func DeletePagePartial(c *fiber.Ctx) error {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
 	}
 
+	// Check, if last partial of the page is being deleted.
+	if isLast, err := services.IsLastEnabledPagePartial(menuItemID, locale); err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if isLast {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.LastPagePartial, "The last partial of the page cannot be deleted.")
+	}
+
 	// Get page to check if it exists.
 	page, err := services.GetPage(menuItemID, locale)
 	if err != nil {

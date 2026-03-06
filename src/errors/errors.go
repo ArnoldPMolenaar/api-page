@@ -13,6 +13,7 @@ const (
 	PageExists           = "pageExists"
 	PageAvailable        = "pageAvailable"
 	PagePartialAvailable = "pagePartialAvailable"
+	LastPagePartial      = "lastPagePartial"
 	ModuleExists         = "moduleExists"
 	ModuleAvailable      = "moduleAvailable"
 	ModuleTypeNotFound   = "moduleTypeNotFound"
