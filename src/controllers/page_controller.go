@@ -422,40 +422,65 @@ func RestorePagePartial(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// isPartialRowsOutOfSync checks if any of the partial rows or their columns have been modified since they were last fetched.
-func isPartialRowsOutOfSync(oldRows *[]models.PagePartialRow, newRows *[]requests.UpdatePagePartialRow) bool {
-	rows := &map[uint]models.PagePartialRow{}
-	cols := &map[uint]models.PagePartialRowColumn{}
-	for _, row := range *oldRows {
-		(*rows)[row.ID] = row
-		for _, col := range row.Columns {
-			(*cols)[col.ID] = col
-		}
+// collectRowAndColumnVersions func for collecting the versions of rows and columns in a page partial tree.
+func collectRowAndColumnVersions(rows []models.PagePartialRow, rowVersions map[uint]int64, columnVersions map[uint]int64, depth int) {
+	if depth > services.MaxPagePartialTreeDepth {
+		return
 	}
 
-	for _, newRow := range *newRows {
-		if newRow.ID == nil || newRow.UpdatedAt == nil {
-			continue
+	for i := range rows {
+		rowVersions[rows[i].ID] = rows[i].UpdatedAt.Unix()
+		for j := range rows[i].Columns {
+			columnVersions[rows[i].Columns[j].ID] = rows[i].Columns[j].UpdatedAt.Unix()
+			collectRowAndColumnVersions(rows[i].Columns[j].PagePartialRows, rowVersions, columnVersions, depth+1)
 		}
+	}
+}
 
-		if oldRow, exists := (*rows)[*newRow.ID]; exists {
-			if newRow.UpdatedAt.Unix() < oldRow.UpdatedAt.Unix() {
+// areRequestedRowsOutOfSync func for checking if any of the requested rows or their columns have been modified since they were last fetched.
+func areRequestedRowsOutOfSync(rows []requests.UpdatePagePartialRow, rowVersions map[uint]int64, columnVersions map[uint]int64, depth int) bool {
+	if depth > services.MaxPagePartialTreeDepth {
+		return true
+	}
+
+	for i := range rows {
+		row := rows[i]
+		if row.ID != nil {
+			if row.UpdatedAt == nil {
 				return true
 			}
 
-			for _, newCol := range newRow.Columns {
-				if newCol.ID == nil || newCol.UpdatedAt == nil {
-					continue
+			if oldVersion, exists := rowVersions[*row.ID]; exists && row.UpdatedAt.Unix() < oldVersion {
+				return true
+			}
+		}
+
+		for j := range row.Columns {
+			col := row.Columns[j]
+			if col.ID != nil {
+				if col.UpdatedAt == nil {
+					return true
 				}
 
-				if oldCol, exists := (*cols)[*newCol.ID]; exists {
-					if newCol.UpdatedAt.Unix() < oldCol.UpdatedAt.Unix() {
-						return true
-					}
+				if oldVersion, exists := columnVersions[*col.ID]; exists && col.UpdatedAt.Unix() < oldVersion {
+					return true
 				}
+			}
+
+			if areRequestedRowsOutOfSync(col.Rows, rowVersions, columnVersions, depth+1) {
+				return true
 			}
 		}
 	}
 
 	return false
+}
+
+// isPartialRowsOutOfSync checks if any of the partial rows or their columns have been modified since they were last fetched.
+func isPartialRowsOutOfSync(oldRows *[]models.PagePartialRow, newRows *[]requests.UpdatePagePartialRow) bool {
+	rowVersions := map[uint]int64{}
+	columnVersions := map[uint]int64{}
+	collectRowAndColumnVersions(*oldRows, rowVersions, columnVersions, 1)
+
+	return areRequestedRowsOutOfSync(*newRows, rowVersions, columnVersions, 1)
 }

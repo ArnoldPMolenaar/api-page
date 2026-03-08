@@ -18,6 +18,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const MaxPagePartialTreeDepth = 4
+
 // IsPagePartialNameAvailable method to check if a name of a partial is available.
 func IsPagePartialNameAvailable(menuItemID uint, locale, name string, ignore *string) (bool, error) {
 	query := database.Pg.Limit(1)
@@ -141,13 +143,8 @@ func GetPublishedPage(menuItemID uint, locale string) (*models.Page, error) {
 
 		if result := database.Pg.
 			Preload("Indexing").
-			Preload("Partials", func(db *gorm.DB) *gorm.DB {
-				return db.Preload("Rows", func(db2 *gorm.DB) *gorm.DB {
-					return db2.Preload("Columns", func(db3 *gorm.DB) *gorm.DB {
-						return db3.Preload("Module").Order("position asc")
-					}).Order("position asc")
-				})
-			}).Find(page, "menu_item_id = ? AND locale = ? AND enabled_at IS NOT NULL", menuItemID, locale); result.Error != nil {
+			Preload("Partials", preloadPagePartialTree).
+			Find(page, "menu_item_id = ? AND locale = ? AND enabled_at IS NOT NULL", menuItemID, locale); result.Error != nil {
 			return nil, result.Error
 		}
 
@@ -197,13 +194,7 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 
 	result := database.Pg.
 		Preload("Indexing").
-		Preload("Partials", func(db *gorm.DB) *gorm.DB {
-			return db.Preload("Rows", func(db2 *gorm.DB) *gorm.DB {
-				return db2.Preload("Columns", func(db3 *gorm.DB) *gorm.DB {
-					return db3.Preload("Module").Order("position asc")
-				}).Order("position asc")
-			})
-		}).
+		Preload("Partials", preloadPagePartialTree).
 		FirstOrCreate(page, page)
 	if result.Error != nil {
 		return nil, result.Error
@@ -237,12 +228,7 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 func GetPartialByID(partialID uint) (*models.PagePartial, error) {
 	partial := &models.PagePartial{}
 
-	if result := database.Pg.
-		Preload("Rows", func(db *gorm.DB) *gorm.DB {
-			return db.Preload("Columns", func(db2 *gorm.DB) *gorm.DB {
-				return db2.Preload("Module").Order("position asc")
-			}).Order("position asc")
-		}).
+	if result := preloadPagePartialTree(database.Pg).
 		Find(partial, "id = ?", partialID); result.Error != nil {
 		return nil, result.Error
 	}
@@ -353,162 +339,21 @@ func UpdatePagePartial(menuItemID uint, locale string, partial *models.PageParti
 	partial.Name = dtoPartial.Name
 
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&partial).
+		if err := tx.Model(partial).
 			Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 			Updates(partial).Error; err != nil {
-			tx.Rollback()
 			return err
 		}
 
 		existingRows := make([]models.PagePartialRow, len(partial.Rows))
 		copy(existingRows, partial.Rows)
-		partial.Rows = make([]models.PagePartialRow, 0)
 
-		desiredRowIDs := make(map[uint]bool)
-		for i := range dtoPartial.Rows {
-			dtoRow := dtoPartial.Rows[i]
-			var row *models.PagePartialRow
-			if dtoRow.ID != nil {
-				for j := range existingRows {
-					if existingRows[j].ID == *dtoRow.ID {
-						row = &existingRows[j]
-						break
-					}
-				}
-			}
-			if row == nil {
-				row = &models.PagePartialRow{
-					PagePartialID: partial.ID,
-				}
-			}
-
-			row.Position = *dtoRow.Position
-			row.NoGutters = dtoRow.NoGutters
-			row.Dense = dtoRow.Dense
-			row.Hashtag = utils.NewNullString(dtoRow.Hashtag)
-			row.Align = utils.NewNullString(dtoRow.Align)
-			row.AlignXxl = utils.NewNullString(dtoRow.AlignXxl)
-			row.AlignXl = utils.NewNullString(dtoRow.AlignXl)
-			row.AlignLg = utils.NewNullString(dtoRow.AlignLg)
-			row.AlignMd = utils.NewNullString(dtoRow.AlignMd)
-			row.AlignSm = utils.NewNullString(dtoRow.AlignSm)
-			row.AlignContent = utils.NewNullString(dtoRow.AlignContent)
-			row.AlignContentXxl = utils.NewNullString(dtoRow.AlignContentXxl)
-			row.AlignContentXl = utils.NewNullString(dtoRow.AlignContentXl)
-			row.AlignContentLg = utils.NewNullString(dtoRow.AlignContentLg)
-			row.AlignContentMd = utils.NewNullString(dtoRow.AlignContentMd)
-			row.AlignContentSm = utils.NewNullString(dtoRow.AlignContentSm)
-			row.Justify = utils.NewNullString(dtoRow.Justify)
-			row.JustifyXxl = utils.NewNullString(dtoRow.JustifyXxl)
-			row.JustifyXl = utils.NewNullString(dtoRow.JustifyXl)
-			row.JustifyLg = utils.NewNullString(dtoRow.JustifyLg)
-			row.JustifyMd = utils.NewNullString(dtoRow.JustifyMd)
-			row.JustifySm = utils.NewNullString(dtoRow.JustifySm)
-			row.Columns = make([]models.PagePartialRowColumn, 0)
-
-			if row.ID != 0 {
-				if err := tx.Model(&row).
-					Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
-					Updates(row).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
-			} else {
-				if err := tx.FirstOrCreate(row, row).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
-
-			desiredRowIDs[row.ID] = true
-
-			existingColumns := make([]models.PagePartialRowColumn, 0)
-			if err := tx.Where("page_partial_row_id = ?", row.ID).Find(&existingColumns).Error; err != nil {
-				tx.Rollback()
-				return err
-			}
-
-			desiredColumnIDs := make(map[uint]bool)
-			for i := range dtoRow.Columns {
-				dtoCol := dtoRow.Columns[i]
-				var col *models.PagePartialRowColumn
-				if dtoCol.ID != nil {
-					for j := range existingColumns {
-						if existingColumns[j].ID == *dtoCol.ID {
-							col = &existingColumns[j]
-							break
-						}
-					}
-				}
-				if col == nil {
-					col = &models.PagePartialRowColumn{
-						PagePartialRowID: row.ID,
-					}
-				}
-
-				col.Position = *dtoCol.Position
-				col.ModuleID = utils.NewNullUInt(dtoCol.ModuleID)
-				col.Cols = dtoCol.Cols
-				col.Xxl = utils.NewNullInt16(dtoCol.Xxl)
-				col.Xl = utils.NewNullInt16(dtoCol.Xl)
-				col.Lg = utils.NewNullInt16(dtoCol.Lg)
-				col.Md = utils.NewNullInt16(dtoCol.Md)
-				col.Sm = utils.NewNullInt16(dtoCol.Sm)
-				col.Xs = utils.NewNullInt16(dtoCol.Xs)
-				col.Offset = utils.NewNullInt16(dtoCol.Offset)
-				col.OffsetXxl = utils.NewNullInt16(dtoCol.OffsetXxl)
-				col.OffsetXl = utils.NewNullInt16(dtoCol.OffsetXl)
-				col.OffsetLg = utils.NewNullInt16(dtoCol.OffsetLg)
-				col.OffsetMd = utils.NewNullInt16(dtoCol.OffsetMd)
-				col.OffsetSm = utils.NewNullInt16(dtoCol.OffsetSm)
-				col.Order = utils.NewNullInt16(dtoCol.Order)
-				col.OrderXxl = utils.NewNullInt16(dtoCol.OrderXxl)
-				col.OrderXl = utils.NewNullInt16(dtoCol.OrderXl)
-				col.OrderLg = utils.NewNullInt16(dtoCol.OrderLg)
-				col.OrderMd = utils.NewNullInt16(dtoCol.OrderMd)
-				col.OrderSm = utils.NewNullInt16(dtoCol.OrderSm)
-				col.AlignSelf = utils.NewNullString(dtoCol.AlignSelf)
-				col.Content = utils.NewNullString(dtoCol.Content)
-
-				if col.ID != 0 {
-					if err := tx.Model(&col).
-						Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
-						Updates(col).Error; err != nil {
-						tx.Rollback()
-						return err
-					}
-				} else {
-					if err := tx.FirstOrCreate(col, col).Error; err != nil {
-						tx.Rollback()
-						return err
-					}
-				}
-
-				desiredColumnIDs[col.ID] = true
-				row.Columns = append(row.Columns, *col)
-			}
-
-			partial.Rows = append(partial.Rows, *row)
-
-			for i := range existingColumns {
-				if _, ok := desiredColumnIDs[existingColumns[i].ID]; !ok {
-					if err := tx.Delete(&existingColumns[i]).Error; err != nil {
-						tx.Rollback()
-						return err
-					}
-				}
-			}
+		rows, err := syncPagePartialRows(tx, partial.ID, nil, existingRows, dtoPartial.Rows, 1)
+		if err != nil {
+			return err
 		}
 
-		for i := range existingRows {
-			if _, ok := desiredRowIDs[existingRows[i].ID]; !ok {
-				if err := tx.Delete(&existingRows[i]).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
-		}
-
+		partial.Rows = rows
 		return nil
 	}); err != nil {
 		return nil, err
@@ -517,6 +362,188 @@ func UpdatePagePartial(menuItemID uint, locale string, partial *models.PageParti
 	_ = deletePageFromCache(menuItemID, locale)
 
 	return partial, nil
+}
+
+// syncPagePartialRows synchronizes the PagePartialRows for a given PagePartial based on the provided DTO rows.
+func syncPagePartialRows(tx *gorm.DB, partialID uint, parentColumnID *uint, existingRows []models.PagePartialRow, dtoRows []requests.UpdatePagePartialRow, depth int) ([]models.PagePartialRow, error) {
+	if depth > MaxPagePartialTreeDepth {
+		return nil, fmt.Errorf("page partial row depth exceeded max depth of %d", MaxPagePartialTreeDepth)
+	}
+
+	existingByID := make(map[uint]*models.PagePartialRow, len(existingRows))
+	for i := range existingRows {
+		existingByID[existingRows[i].ID] = &existingRows[i]
+	}
+
+	desiredRows := make([]models.PagePartialRow, 0, len(dtoRows))
+	desiredIDs := make(map[uint]bool, len(dtoRows))
+
+	for i := range dtoRows {
+		dtoRow := dtoRows[i]
+		var row *models.PagePartialRow
+		if dtoRow.ID != nil {
+			row = existingByID[*dtoRow.ID]
+		}
+		if row == nil {
+			row = &models.PagePartialRow{}
+		}
+
+		row.PagePartialID = partialID
+		row.Position = utils.UintOrZero(dtoRow.Position)
+		row.NoGutters = dtoRow.NoGutters
+		row.Dense = dtoRow.Dense
+		row.Hashtag = utils.NewNullString(dtoRow.Hashtag)
+		row.Align = utils.NewNullString(dtoRow.Align)
+		row.AlignXxl = utils.NewNullString(dtoRow.AlignXxl)
+		row.AlignXl = utils.NewNullString(dtoRow.AlignXl)
+		row.AlignLg = utils.NewNullString(dtoRow.AlignLg)
+		row.AlignMd = utils.NewNullString(dtoRow.AlignMd)
+		row.AlignSm = utils.NewNullString(dtoRow.AlignSm)
+		row.AlignContent = utils.NewNullString(dtoRow.AlignContent)
+		row.AlignContentXxl = utils.NewNullString(dtoRow.AlignContentXxl)
+		row.AlignContentXl = utils.NewNullString(dtoRow.AlignContentXl)
+		row.AlignContentLg = utils.NewNullString(dtoRow.AlignContentLg)
+		row.AlignContentMd = utils.NewNullString(dtoRow.AlignContentMd)
+		row.AlignContentSm = utils.NewNullString(dtoRow.AlignContentSm)
+		row.Justify = utils.NewNullString(dtoRow.Justify)
+		row.JustifyXxl = utils.NewNullString(dtoRow.JustifyXxl)
+		row.JustifyXl = utils.NewNullString(dtoRow.JustifyXl)
+		row.JustifyLg = utils.NewNullString(dtoRow.JustifyLg)
+		row.JustifyMd = utils.NewNullString(dtoRow.JustifyMd)
+		row.JustifySm = utils.NewNullString(dtoRow.JustifySm)
+
+		if row.ID != 0 {
+			if err := tx.Model(row).
+				Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
+				Updates(row).Error; err != nil {
+				return nil, err
+			}
+		} else {
+			if err := tx.Create(row).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		if parentColumnID != nil {
+			if err := ensureRowColumnRelation(tx, *parentColumnID, row.ID); err != nil {
+				return nil, err
+			}
+		}
+
+		existingColumns := make([]models.PagePartialRowColumn, 0)
+		if dtoRow.ID != nil && len(row.Columns) == 0 {
+			if err := tx.Where("page_partial_row_id = ?", row.ID).Find(&existingColumns).Error; err != nil {
+				return nil, err
+			}
+		} else {
+			existingColumns = row.Columns
+		}
+
+		columns, err := syncPagePartialColumns(tx, partialID, row.ID, existingColumns, dtoRow.Columns, depth)
+		if err != nil {
+			return nil, err
+		}
+
+		row.Columns = columns
+		desiredRows = append(desiredRows, *row)
+		desiredIDs[row.ID] = true
+	}
+
+	for i := range existingRows {
+		if _, ok := desiredIDs[existingRows[i].ID]; !ok {
+			if err := tx.Delete(&existingRows[i]).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return desiredRows, nil
+}
+
+// syncPagePartialColumns synchronizes the PagePartialRowColumns for a given PagePartialRow based on the provided DTO columns.
+func syncPagePartialColumns(tx *gorm.DB, partialID, rowID uint, existingColumns []models.PagePartialRowColumn, dtoColumns []requests.UpdatePagePartialRowColumn, depth int) ([]models.PagePartialRowColumn, error) {
+	existingByID := make(map[uint]*models.PagePartialRowColumn, len(existingColumns))
+	for i := range existingColumns {
+		existingByID[existingColumns[i].ID] = &existingColumns[i]
+	}
+
+	desiredColumns := make([]models.PagePartialRowColumn, 0, len(dtoColumns))
+	desiredIDs := make(map[uint]bool, len(dtoColumns))
+
+	for i := range dtoColumns {
+		dtoCol := dtoColumns[i]
+		var col *models.PagePartialRowColumn
+		if dtoCol.ID != nil {
+			col = existingByID[*dtoCol.ID]
+		}
+		if col == nil {
+			col = &models.PagePartialRowColumn{}
+		}
+
+		col.PagePartialRowID = rowID
+		col.Position = utils.UintOrZero(dtoCol.Position)
+		col.ModuleID = utils.NewNullUInt(dtoCol.ModuleID)
+		col.Cols = dtoCol.Cols
+		col.Xxl = utils.NewNullInt16(dtoCol.Xxl)
+		col.Xl = utils.NewNullInt16(dtoCol.Xl)
+		col.Lg = utils.NewNullInt16(dtoCol.Lg)
+		col.Md = utils.NewNullInt16(dtoCol.Md)
+		col.Sm = utils.NewNullInt16(dtoCol.Sm)
+		col.Xs = utils.NewNullInt16(dtoCol.Xs)
+		col.Offset = utils.NewNullInt16(dtoCol.Offset)
+		col.OffsetXxl = utils.NewNullInt16(dtoCol.OffsetXxl)
+		col.OffsetXl = utils.NewNullInt16(dtoCol.OffsetXl)
+		col.OffsetLg = utils.NewNullInt16(dtoCol.OffsetLg)
+		col.OffsetMd = utils.NewNullInt16(dtoCol.OffsetMd)
+		col.OffsetSm = utils.NewNullInt16(dtoCol.OffsetSm)
+		col.Order = utils.NewNullInt16(dtoCol.Order)
+		col.OrderXxl = utils.NewNullInt16(dtoCol.OrderXxl)
+		col.OrderXl = utils.NewNullInt16(dtoCol.OrderXl)
+		col.OrderLg = utils.NewNullInt16(dtoCol.OrderLg)
+		col.OrderMd = utils.NewNullInt16(dtoCol.OrderMd)
+		col.OrderSm = utils.NewNullInt16(dtoCol.OrderSm)
+		col.AlignSelf = utils.NewNullString(dtoCol.AlignSelf)
+		col.Content = utils.NewNullString(dtoCol.Content)
+
+		if col.ID != 0 {
+			if err := tx.Model(col).
+				Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
+				Updates(col).Error; err != nil {
+				return nil, err
+			}
+		} else {
+			if err := tx.Create(col).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		existingNestedRows := make([]models.PagePartialRow, 0)
+		if err := tx.Model(&models.PagePartialRow{}).
+			Joins("JOIN page_partial_row_column_rows ON page_partial_row_column_rows.row_id = page_partial_rows.id").
+			Where("page_partial_row_column_rows.column_id = ?", col.ID).
+			Find(&existingNestedRows).Error; err != nil {
+			return nil, err
+		}
+
+		nestedRows, err := syncPagePartialRows(tx, partialID, &col.ID, existingNestedRows, dtoCol.Rows, depth+1)
+		if err != nil {
+			return nil, err
+		}
+
+		col.PagePartialRows = nestedRows
+		desiredColumns = append(desiredColumns, *col)
+		desiredIDs[col.ID] = true
+	}
+
+	for i := range existingColumns {
+		if _, ok := desiredIDs[existingColumns[i].ID]; !ok {
+			if err := tx.Delete(&existingColumns[i]).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return desiredColumns, nil
 }
 
 // DeletePage method to delete a page.
@@ -558,6 +585,42 @@ func RestorePagePartial(menuItemID uint, locale string, partialID uint) error {
 	}
 
 	return err
+}
+
+// shared row ordering for root partial rows; exclude rows linked as nested column rows.
+func preloadRootPagePartialRows(db *gorm.DB) *gorm.DB {
+	return db.
+		Where("NOT EXISTS (SELECT 1 FROM page_partial_row_column_rows prcr WHERE prcr.row_id = page_partial_rows.id)").
+		Order("position asc")
+}
+
+// shared row ordering for nested rows loaded through column relations.
+func preloadNestedPagePartialRows(db *gorm.DB) *gorm.DB {
+	return db.Order("position asc")
+}
+
+// shared column ordering + module preload for partial tree preloads.
+func preloadPagePartialColumns(db *gorm.DB) *gorm.DB {
+	return db.Preload("Module").Order("position asc")
+}
+
+// preloadPagePartialTree loads rows/columns recursively up to MaxPagePartialTreeDepth.
+func preloadPagePartialTree(db *gorm.DB) *gorm.DB {
+	return db.
+		Preload("Rows", preloadRootPagePartialRows).
+		Preload("Rows.Columns", preloadPagePartialColumns).
+		Preload("Rows.Columns.PagePartialRows", preloadNestedPagePartialRows).
+		Preload("Rows.Columns.PagePartialRows.Columns", preloadPagePartialColumns).
+		Preload("Rows.Columns.PagePartialRows.Columns.PagePartialRows", preloadNestedPagePartialRows).
+		Preload("Rows.Columns.PagePartialRows.Columns.PagePartialRows.Columns", preloadPagePartialColumns).
+		Preload("Rows.Columns.PagePartialRows.Columns.PagePartialRows.Columns.PagePartialRows", preloadNestedPagePartialRows).
+		Preload("Rows.Columns.PagePartialRows.Columns.PagePartialRows.Columns.PagePartialRows.Columns", preloadPagePartialColumns)
+}
+
+// ensureRowColumnRelation ensures that a relation exists between a row and a column in the page_partial_row_column_rows table.
+func ensureRowColumnRelation(tx *gorm.DB, columnID, rowID uint) error {
+	relation := models.PagePartialRowColumnRow{ColumnID: columnID, RowID: rowID}
+	return tx.Where("column_id = ? AND row_id = ?", columnID, rowID).FirstOrCreate(&relation).Error
 }
 
 // getPageCacheKey gets the key for the cache.

@@ -34,6 +34,7 @@ type PagePartialRowColumn struct {
 	Content          sql.NullString
 
 	// Relationships.
-	PagePartialRow PagePartialRow `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:PagePartialRowID;references:ID"`
-	Module         *Module        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;foreignKey:ModuleID;references:ID"`
+	PagePartialRow  PagePartialRow   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:PagePartialRowID;references:ID"`
+	PagePartialRows []PagePartialRow `gorm:"many2many:page_partial_row_column_rows;foreignKey:ID;joinForeignKey:ColumnId;references:ID;joinReferences:RowId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Module          *Module          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;foreignKey:ModuleID;references:ID"`
 }

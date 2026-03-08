@@ -5,30 +5,31 @@ import (
 )
 
 type PublishedPagePartialRowColumn struct {
-	ID        uint             `json:"id" `
-	Position  uint             `json:"position"`
-	Cols      string           `json:"cols"`
-	Xxl       *int16           `json:"xxl"`
-	Xl        *int16           `json:"xl"`
-	Lg        *int16           `json:"lg"`
-	Md        *int16           `json:"md"`
-	Sm        *int16           `json:"sm"`
-	Xs        *int16           `json:"xs"`
-	Offset    *int16           `json:"offset"`
-	OffsetXxl *int16           `json:"offsetXxl"`
-	OffsetXl  *int16           `json:"offsetXl"`
-	OffsetLg  *int16           `json:"offsetLg"`
-	OffsetMd  *int16           `json:"offsetMd"`
-	OffsetSm  *int16           `json:"offsetSm"`
-	Order     *int16           `json:"order"`
-	OrderXxl  *int16           `json:"orderXxl"`
-	OrderXl   *int16           `json:"orderXl"`
-	OrderLg   *int16           `json:"orderLg"`
-	OrderMd   *int16           `json:"orderMd"`
-	OrderSm   *int16           `json:"orderSm"`
-	AlignSelf *string          `json:"alignSelf"`
-	Content   *string          `json:"content"`
-	Module    *PublishedModule `json:"module"`
+	ID        uint                      `json:"id" `
+	Position  uint                      `json:"position"`
+	Cols      string                    `json:"cols"`
+	Xxl       *int16                    `json:"xxl"`
+	Xl        *int16                    `json:"xl"`
+	Lg        *int16                    `json:"lg"`
+	Md        *int16                    `json:"md"`
+	Sm        *int16                    `json:"sm"`
+	Xs        *int16                    `json:"xs"`
+	Offset    *int16                    `json:"offset"`
+	OffsetXxl *int16                    `json:"offsetXxl"`
+	OffsetXl  *int16                    `json:"offsetXl"`
+	OffsetLg  *int16                    `json:"offsetLg"`
+	OffsetMd  *int16                    `json:"offsetMd"`
+	OffsetSm  *int16                    `json:"offsetSm"`
+	Order     *int16                    `json:"order"`
+	OrderXxl  *int16                    `json:"orderXxl"`
+	OrderXl   *int16                    `json:"orderXl"`
+	OrderLg   *int16                    `json:"orderLg"`
+	OrderMd   *int16                    `json:"orderMd"`
+	OrderSm   *int16                    `json:"orderSm"`
+	AlignSelf *string                   `json:"alignSelf"`
+	Content   *string                   `json:"content"`
+	Module    *PublishedModule          `json:"module"`
+	Rows      []PublishedPagePartialRow `json:"rows"`
 }
 
 // SetPagePartialRowColumn sets the PagePartialRowColumn response from the models.PagePartialRowColumn model.
@@ -100,5 +101,12 @@ func (ppprc *PublishedPagePartialRowColumn) SetPagePartialRowColumn(column *mode
 		var module PublishedModule
 		module.SetModule(column.Module)
 		ppprc.Module = &module
+	}
+
+	ppprc.Rows = make([]PublishedPagePartialRow, len(column.PagePartialRows))
+	for i := range column.PagePartialRows {
+		row := PublishedPagePartialRow{}
+		row.SetPagePartialRow(&column.PagePartialRows[i])
+		ppprc.Rows[i] = row
 	}
 }
