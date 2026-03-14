@@ -445,7 +445,7 @@ func areRequestedRowsOutOfSync(rows []requests.UpdatePagePartialRow, rowVersions
 
 	for i := range rows {
 		row := rows[i]
-		if row.ID != nil {
+		if row.ID != nil && *row.ID != 0 {
 			if row.UpdatedAt == nil {
 				return true
 			}
@@ -457,7 +457,7 @@ func areRequestedRowsOutOfSync(rows []requests.UpdatePagePartialRow, rowVersions
 
 		for j := range row.Columns {
 			col := row.Columns[j]
-			if col.ID != nil {
+			if col.ID != nil && *col.ID != 0 {
 				if col.UpdatedAt == nil {
 					return true
 				}
