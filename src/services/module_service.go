@@ -60,12 +60,12 @@ func GetModules(c *fiber.Ctx) (*pagination.Model, error) {
 	modules := make([]models.Module, 0)
 	values := c.Request().URI().QueryArgs()
 	allowedColumns := map[string]bool{
-		"id":         true,
-		"app_name":   true,
-		"type":       true,
-		"name":       true,
-		"created_at": true,
-		"updated_at": true,
+		"id":           true,
+		"app_name":     true,
+		"type":         true,
+		"modules.name": true,
+		"created_at":   true,
+		"updated_at":   true,
 	}
 
 	queryFunc := pagination.Query(values, allowedColumns)
