@@ -9,6 +9,7 @@ type Menu struct {
 	ID        uint       `json:"id"`
 	VersionID uint       `json:"versionId"`
 	Name      string     `json:"name"`
+	Depth     *uint8     `json:"depth"`
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
 	Items     []MenuItem `json:"items"`
@@ -21,6 +22,10 @@ func (m *Menu) SetMenu(menu *models.Menu) {
 	m.Name = menu.Name
 	m.CreatedAt = menu.CreatedAt
 	m.UpdatedAt = menu.UpdatedAt
+
+	if menu.Depth.Valid {
+		m.Depth = &menu.Depth.V
+	}
 
 	m.Items = make([]MenuItem, 0)
 	for i, _ := range menu.MenuItemRelations {

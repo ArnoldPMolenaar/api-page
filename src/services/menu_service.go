@@ -7,6 +7,7 @@ import (
 	"api-page/main/src/dto/responses"
 	"api-page/main/src/enums"
 	"api-page/main/src/models"
+	"api-page/main/src/utils"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -226,7 +227,7 @@ func GetVersionIDByMenuItemID(menuItemID uint) (uint, error) {
 
 // CreateMenu method to create a menu.
 func CreateMenu(menu *requests.CreateMenu) (*models.Menu, error) {
-	m := &models.Menu{VersionID: menu.VersionID, Name: menu.Name}
+	m := &models.Menu{VersionID: menu.VersionID, Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}
 
 	result := &models.Menu{}
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
@@ -264,7 +265,7 @@ func UpdateMenu(oldMenu *models.Menu, menu *requests.UpdateMenu) (*models.Menu, 
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&oldMenu).
 			Clauses(clause.Returning{Columns: []clause.Column{{Name: "name"}, {Name: "updated_at"}}}).
-			Updates(models.Menu{Name: menu.Name}).Error; err != nil {
+			Updates(models.Menu{Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}).Error; err != nil {
 			return err
 		}
 

@@ -154,6 +154,13 @@ func CreateMenu(c *fiber.Ctx) error {
 		return errorutil.Response(c, fiber.StatusBadRequest, errors.MenuAvailable, "Menu name already exist.")
 	}
 
+	// Check if menu depth is correct.
+	if !isMenuDepthValid(menuRequest.Depth, 0, menuRequest.Items, func(item requests.CreateMenuItem) []requests.CreateMenuItem {
+		return item.Items
+	}) {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.MenuDepthInvalid, "Menu depth does not match the depth of the menu items.")
+	}
+
 	// Create menu.
 	menu, err := services.CreateMenu(menuRequest)
 	if err != nil {
@@ -210,6 +217,13 @@ func UpdateMenu(c *fiber.Ctx) error {
 		} else if !available {
 			return errorutil.Response(c, fiber.StatusBadRequest, errors.MenuAvailable, "Menu name already exist.")
 		}
+	}
+
+	// Check if menu depth is correct.
+	if !isMenuDepthValid(menuRequest.Depth, 0, menuRequest.Items, func(item requests.UpdateMenuItem) []requests.UpdateMenuItem {
+		return item.Items
+	}) {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.MenuDepthInvalid, "Menu depth does not match the depth of the menu items.")
 	}
 
 	// Update menu.
@@ -325,4 +339,24 @@ func isMenuItemsOutOfSync(menuItems *[]models.MenuItemRelation, requestItems *[]
 	}
 
 	return false
+}
+
+// isMenuDepthValid checks if the depth is not exceeded e.g. configured in the menu.
+func isMenuDepthValid[T any](maxDepth *uint8, currentDepth uint8, items []T, getChildren func(T) []T) bool {
+	if maxDepth == nil {
+		return true
+	}
+
+	for i := range items {
+		// If we're already at max depth, any child at this level exceeds it.
+		if currentDepth >= *maxDepth {
+			return false
+		}
+
+		if !isMenuDepthValid[T](maxDepth, currentDepth+1, getChildren(items[i]), getChildren) {
+			return false
+		}
+	}
+
+	return true
 }

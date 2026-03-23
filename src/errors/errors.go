@@ -10,6 +10,7 @@ const (
 	VersionNotPublished  = "versionNotPublished"
 	MenuExists           = "menuExists"
 	MenuAvailable        = "menuAvailable"
+	MenuDepthInvalid     = "menuDepthInvalid"
 	PageExists           = "pageExists"
 	PageAvailable        = "pageAvailable"
 	PagePartialAvailable = "pagePartialAvailable"
