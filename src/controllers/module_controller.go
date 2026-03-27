@@ -22,6 +22,30 @@ func GetModules(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(paginationModel)
 }
 
+// GetModuleTypeLookup func for getting module type lookup.
+func GetModuleTypeLookup(c *fiber.Ctx) error {
+	appParam := c.Query("app")
+	var appName *string
+	if appParam != "" {
+		appName = &appParam
+	}
+
+	moduleTypes, err := services.GetModuleTypeLookup(appName)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	}
+
+	types := make([]string, len(*moduleTypes))
+	for i, moduleType := range *moduleTypes {
+		types[i] = moduleType.Name
+	}
+
+	response := responses.TypeLookupList{}
+	response.SetTypeLookupList(types)
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
 // GetModuleLookup func for getting module lookup.
 func GetModuleLookup(c *fiber.Ctx) error {
 	appParam := c.Query("app")

@@ -15,6 +15,8 @@ func PrivateRoutes(a *fiber.App) {
 	// Register route group for /v1/apps.
 	apps := route.Group("/apps")
 	apps.Post("/", middleware.MachineProtected(), controllers.CreateApp)
+	apps.Put("/modules/types", middleware.MachineProtected(), controllers.SetAppModuleTypes)
+	apps.Put("/plugins/types", middleware.MachineProtected(), controllers.SetAppPluginTypes)
 
 	// Register route group for /v1/versions.
 	versions := route.Group("/versions")
@@ -60,9 +62,14 @@ func PrivateRoutes(a *fiber.App) {
 	modules.Get("/", middleware.MachineProtected(), controllers.GetModules)
 	modules.Post("/", middleware.MachineProtected(), controllers.CreateModule)
 	modules.Get("/lookup", middleware.MachineProtected(), controllers.GetModuleLookup)
+	modules.Get("/types/lookup", middleware.MachineProtected(), controllers.GetModuleTypeLookup)
 	modules.Get("/name/available", middleware.MachineProtected(), controllers.IsModuleNameAvailable)
 	modules.Get("/:id", middleware.MachineProtected(), controllers.GetModuleByID)
 	modules.Put("/:id", middleware.MachineProtected(), controllers.UpdateModule)
 	modules.Delete("/:id", middleware.MachineProtected(), controllers.DeleteModule)
 	modules.Put("/:id/restore", middleware.MachineProtected(), controllers.RestoreModule)
+
+	// Register route group for /v1/plugins.
+	plugins := route.Group("/plugins")
+	plugins.Get("/types/lookup", middleware.MachineProtected(), controllers.GetPluginTypeLookup)
 }

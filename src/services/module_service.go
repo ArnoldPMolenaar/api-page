@@ -106,6 +106,39 @@ func GetModules(c *fiber.Ctx) (*pagination.Model, error) {
 	return &paginationModel, nil
 }
 
+// GetModuleTypeLookup method to get a lookup of module types.
+func GetModuleTypeLookup(appName *string) (*[]models.ModuleType, error) {
+	moduleTypes := make([]models.ModuleType, 0)
+
+	if inCache, err := isModuleTypesLookupInCache(appName); err != nil {
+		return nil, err
+	} else if inCache {
+		if cacheModuleTypes, err := getModuleTypesLookupFromCache(appName); err != nil {
+			return nil, err
+		} else if cacheModuleTypes != nil && len(*cacheModuleTypes) > 0 {
+			moduleTypes = *cacheModuleTypes
+		}
+	}
+
+	if len(moduleTypes) == 0 {
+		if appName != nil && strings.TrimSpace(*appName) != "" {
+			appModuleTypes, err := GetAppModuleTypes(strings.TrimSpace(*appName))
+			if err != nil {
+				return nil, err
+			}
+			moduleTypes = appModuleTypes
+		} else {
+			if result := database.Pg.Find(&moduleTypes); result.Error != nil {
+				return nil, result.Error
+			}
+		}
+
+		_ = setModuleTypesLookupToCache(appName, &moduleTypes)
+	}
+
+	return &moduleTypes, nil
+}
+
 // GetModuleLookup method to get a lookup of modules.
 func GetModuleLookup(appName string, name *string) (*[]models.Module, error) {
 	modules := make([]models.Module, 0)
@@ -219,6 +252,81 @@ func RestoreModule(moduleID uint) error {
 	}
 
 	return err
+}
+
+// getModuleTypesLookupCacheKey gets the key for the cache.
+func getModuleTypesLookupCacheKey(appName *string) string {
+	if appName == nil || strings.TrimSpace(*appName) == "" {
+		return "modules:types"
+	}
+
+	return fmt.Sprintf("modules:types:%s", strings.TrimSpace(*appName))
+}
+
+// isModuleTypesLookupInCache checks if module types exist in the cache.
+func isModuleTypesLookupInCache(appName *string) (bool, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Exists().Key(getModuleTypesLookupCacheKey(appName)).Build())
+	if result.Error() != nil {
+		return false, result.Error()
+	}
+
+	value, err := result.ToInt64()
+	if err != nil {
+		return false, err
+	}
+
+	return value == 1, nil
+}
+
+// getModuleTypesLookupFromCache gets module types from the cache.
+func getModuleTypesLookupFromCache(appName *string) (*[]models.ModuleType, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Get().Key(getModuleTypesLookupCacheKey(appName)).Build())
+	if result.Error() != nil {
+		return nil, result.Error()
+	}
+
+	value, err := result.ToString()
+	if err != nil {
+		return nil, err
+	}
+
+	var moduleTypes []models.ModuleType
+	if err := json.Unmarshal([]byte(value), &moduleTypes); err != nil {
+		return nil, err
+	}
+
+	return &moduleTypes, nil
+}
+
+// setModuleTypesLookupToCache sets module types to the cache.
+func setModuleTypesLookupToCache(appName *string, moduleTypes *[]models.ModuleType) error {
+	value, err := json.Marshal(moduleTypes)
+	if err != nil {
+		return err
+	}
+
+	expiration := os.Getenv("VALKEY_EXPIRATION")
+	duration, err := time.ParseDuration(expiration)
+	if err != nil {
+		return err
+	}
+
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Set().Key(getModuleTypesLookupCacheKey(appName)).Value(valkey.BinaryString(value)).Ex(duration).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deleteModuleTypesLookupFromCache deletes existing module type lookups from cache.
+func deleteModuleTypesLookupFromCache(appName *string) error {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getModuleTypesLookupCacheKey(appName)).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
 }
 
 // getModulesLookupCacheKey gets the key for the cache.
