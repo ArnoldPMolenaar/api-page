@@ -17,7 +17,8 @@ type Version struct {
 	Name        string         `gorm:"not null;index:idx_name,unique"`
 
 	// Relationships.
-	App App `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:AppName;references:Name"`
+	App        App         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:AppName;references:Name"`
+	FooterRows []FooterRow `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:VersionID;references:ID"`
 }
 
 // BeforeCreate sets a time-ordered UUIDv7 for PublishID if it's not already set.

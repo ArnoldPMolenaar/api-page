@@ -291,7 +291,7 @@ func getModuleTypesLookupFromCache(appName *string) (*[]models.ModuleType, error
 	}
 
 	var moduleTypes []models.ModuleType
-	if err := json.Unmarshal([]byte(value), &moduleTypes); err != nil {
+	if err = json.Unmarshal([]byte(value), &moduleTypes); err != nil {
 		return nil, err
 	}
 
@@ -362,7 +362,7 @@ func getModulesLookupFromCache(appName string) (*[]models.Module, error) {
 	}
 
 	var modules []models.Module
-	if err := json.Unmarshal([]byte(value), &modules); err != nil {
+	if err = json.Unmarshal([]byte(value), &modules); err != nil {
 		return nil, err
 	}
 

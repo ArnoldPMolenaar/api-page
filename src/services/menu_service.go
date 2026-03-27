@@ -352,7 +352,7 @@ func getMenusLookupFromCache(versionID uint) (*[]models.Menu, error) {
 	}
 
 	var menus []models.Menu
-	if err := json.Unmarshal([]byte(value), &menus); err != nil {
+	if err = json.Unmarshal([]byte(value), &menus); err != nil {
 		return nil, err
 	}
 
@@ -423,7 +423,7 @@ func getAllVersionMenusFromCache(versionID uint) (*map[string][]models.Menu, err
 	}
 
 	var versionMenus map[string][]models.Menu
-	if err := json.Unmarshal([]byte(value), &versionMenus); err != nil {
+	if err = json.Unmarshal([]byte(value), &versionMenus); err != nil {
 		return nil, err
 	}
 

@@ -294,7 +294,7 @@ func getVersionsLookupFromCache(appName string) (*[]models.Version, error) {
 	}
 
 	var versions []models.Version
-	if err := json.Unmarshal([]byte(value), &versions); err != nil {
+	if err = json.Unmarshal([]byte(value), &versions); err != nil {
 		return nil, err
 	}
 

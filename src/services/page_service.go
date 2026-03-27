@@ -656,7 +656,7 @@ func getPageFromCache(menuItemID uint, locale string) (*models.Page, error) {
 	}
 
 	var page models.Page
-	if err := json.Unmarshal([]byte(value), &page); err != nil {
+	if err = json.Unmarshal([]byte(value), &page); err != nil {
 		return nil, err
 	}
 

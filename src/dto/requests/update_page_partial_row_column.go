@@ -30,5 +30,5 @@ type UpdatePagePartialRowColumn struct {
 	AlignSelf *string                `json:"alignSelf"`
 	Content   *string                `json:"content"`
 	UpdatedAt *time.Time             `json:"updatedAt"`
-	Rows      []UpdatePagePartialRow `json:"rows"`
+	Rows      []UpdatePagePartialRow `json:"rows" validate:"dive"`
 }

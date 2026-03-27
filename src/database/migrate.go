@@ -25,6 +25,8 @@ func Migrate(db *gorm.DB) error {
 		&models.PluginType{},
 		&models.ModuleType{},
 		&models.Version{},
+		&models.FooterRow{},
+		&models.FooterRowColumn{},
 		&models.Menu{},
 		&models.MenuItem{},
 		&models.MenuItemIndexing{},
