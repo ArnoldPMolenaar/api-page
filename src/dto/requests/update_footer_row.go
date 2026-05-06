@@ -1,6 +1,10 @@
 package requests
 
-import "time"
+import (
+	"api-page/main/src/models"
+	"api-page/main/src/utils"
+	"time"
+)
 
 type UpdateFooterRow struct {
 	ID        *uint  `json:"id"`
@@ -31,4 +35,39 @@ type UpdateFooterRow struct {
 	JustifySm       *string                 `json:"justifySm"`
 	UpdatedAt       *time.Time              `json:"updatedAt"`
 	Columns         []UpdateFooterRowColumn `json:"columns" validate:"required,min=1,dive"`
+}
+
+func (u *UpdateFooterRow) SetFooterRow(row models.FooterRow, versionID uint, locale string) {
+	columns := make([]UpdateFooterRowColumn, 0, len(row.Columns))
+	for i := range row.Columns {
+		column := UpdateFooterRowColumn{}
+		column.SetFooterRowColumn(row.Columns[i], versionID, locale)
+		columns = append(columns, column)
+	}
+
+	u.VersionID = versionID
+	u.Locale = locale
+	u.Position = utils.PtrFromUint(row.Position)
+	u.NoGutters = row.NoGutters
+	u.Dense = row.Dense
+	u.Hashtag = utils.PtrFromNullString(row.Hashtag)
+	u.Align = utils.PtrFromNullString(row.Align)
+	u.AlignXxl = utils.PtrFromNullString(row.AlignXxl)
+	u.AlignXl = utils.PtrFromNullString(row.AlignXl)
+	u.AlignLg = utils.PtrFromNullString(row.AlignLg)
+	u.AlignMd = utils.PtrFromNullString(row.AlignMd)
+	u.AlignSm = utils.PtrFromNullString(row.AlignSm)
+	u.AlignContent = utils.PtrFromNullString(row.AlignContent)
+	u.AlignContentXxl = utils.PtrFromNullString(row.AlignContentXxl)
+	u.AlignContentXl = utils.PtrFromNullString(row.AlignContentXl)
+	u.AlignContentLg = utils.PtrFromNullString(row.AlignContentLg)
+	u.AlignContentMd = utils.PtrFromNullString(row.AlignContentMd)
+	u.AlignContentSm = utils.PtrFromNullString(row.AlignContentSm)
+	u.Justify = utils.PtrFromNullString(row.Justify)
+	u.JustifyXxl = utils.PtrFromNullString(row.JustifyXxl)
+	u.JustifyXl = utils.PtrFromNullString(row.JustifyXl)
+	u.JustifyLg = utils.PtrFromNullString(row.JustifyLg)
+	u.JustifyMd = utils.PtrFromNullString(row.JustifyMd)
+	u.JustifySm = utils.PtrFromNullString(row.JustifySm)
+	u.Columns = columns
 }

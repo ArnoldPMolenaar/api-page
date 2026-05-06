@@ -247,6 +247,65 @@ func UpdateVersion(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
+// DuplicateVersion func for duplicating an existing version model with its data.
+func DuplicateVersion(c *fiber.Ctx) error {
+	// Get the versionID parameter from the URL.
+	versionIDParam := c.Params("id")
+	versionID, err := util.StringToUint(versionIDParam)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
+	}
+
+	// Create a new duplicate version struct for the request.
+	versionRequest := &requests.CreateDuplicateVersion{}
+
+	// Check, if received JSON data is parsed.
+	if err := c.BodyParser(versionRequest); err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
+	}
+
+	// Validate version fields.
+	validate := util.NewValidator()
+	if err := validate.Struct(versionRequest); err != nil {
+		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.Validator, util.ValidatorErrors(err))
+	}
+
+	// Check if app exists.
+	appAvailable, err := services.IsAppAvailable(versionRequest.AppName)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if !appAvailable {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.AppNotFound, "App not found.")
+	}
+
+	// Get old version.
+	oldVersion, err := services.GetVersionByID(versionID)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if oldVersion.ID == 0 {
+		return errorutil.Response(c, fiber.StatusNotFound, errors.VersionExists, "Version does not exist.")
+	}
+
+	// Check if version name is available for the requested app.
+	if available, err := services.IsVersionAvailable(versionRequest.AppName, versionRequest.Name, nil); err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	} else if !available {
+		return errorutil.Response(c, fiber.StatusBadRequest, errors.VersionAvailable, "Version name already exist.")
+	}
+
+	// Duplicate version.
+	duplicatedVersion, err := services.DuplicateVersion(oldVersion, versionRequest)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	}
+
+	// Return the duplicated version.
+	response := responses.Version{}
+	response.SetVersion(duplicatedVersion)
+
+	return c.Status(fiber.StatusCreated).JSON(response)
+}
+
 // PublishVersion func for publishing a version.
 func PublishVersion(c *fiber.Ctx) error {
 	// Get the versionID parameter from the URL.

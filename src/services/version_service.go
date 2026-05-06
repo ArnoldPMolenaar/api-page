@@ -6,9 +6,11 @@ import (
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/dto/responses"
 	"api-page/main/src/models"
+	"api-page/main/src/utils"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -208,6 +210,110 @@ func UpdateVersion(oldVersion models.Version, version *requests.UpdateVersion) (
 	return &oldVersion, nil
 }
 
+// DuplicateVersion method to duplicate a version with selected menus/items and locales,
+// including deep cloning of menu trees and pages/partials/indexing, all within a transaction for consistency.
+func DuplicateVersion(oldVersion *models.Version, settings *requests.CreateDuplicateVersion) (*models.Version, error) {
+	if oldVersion == nil {
+		return nil, errors.New("old version is required")
+	}
+
+	if settings == nil {
+		return nil, errors.New("duplicate version settings are required")
+	}
+
+	locales := settings.Locales
+	newVersion := &models.Version{AppName: settings.AppName, Name: settings.Name, EnabledAt: utils.NewNullTime(settings.EnabledAt)}
+	menuItemMapping := make(map[uint]uint)
+
+	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(newVersion).Error; err != nil {
+			return err
+		}
+
+		sourceMenus := make([]models.Menu, 0)
+		if err := tx.
+			Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
+				return db.
+					Preload("MenuItemChild", func(db2 *gorm.DB) *gorm.DB {
+						return db2.Preload("Indexing")
+					}).
+					Order("menu_item_parent_id NULLS FIRST").
+					Order("position ASC")
+			}).
+			Where("version_id = ?", oldVersion.ID).
+			Order("id ASC").
+			Find(&sourceMenus).Error; err != nil {
+			return err
+		}
+
+		menuSelections := buildDuplicateMenuSelections(sourceMenus, settings)
+
+		for i := range sourceMenus {
+			sourceMenu := &sourceMenus[i]
+			selection, ok := menuSelections[sourceMenu.ID]
+			if !ok {
+				continue
+			}
+
+			items, oldPathMap := buildCreateMenuItemsFromSource(sourceMenu, selection)
+			if len(items) == 0 {
+				continue
+			}
+
+			menuCreate := &requests.CreateMenu{
+				VersionID: newVersion.ID,
+				Name:      sourceMenu.Name,
+				Depth:     utils.PtrFromNullUint8(sourceMenu.Depth),
+				Items:     items,
+			}
+
+			newMenu, err := CreateMenuWithTx(tx, menuCreate)
+			if err != nil {
+				return err
+			}
+
+			newPathMap := buildMenuItemPathMap(newMenu.MenuItemRelations)
+
+			for path, oldMenuItemID := range oldPathMap {
+				if newMenuItemID, ok := newPathMap[path]; ok {
+					menuItemMapping[oldMenuItemID] = newMenuItemID
+				}
+			}
+		}
+
+		if err := duplicatePages(tx, menuItemMapping, locales); err != nil {
+			return err
+		}
+
+		if settings.Footer {
+			if err := duplicateFooter(tx, oldVersion.ID, newVersion.ID, locales); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	_ = deleteVersionsLookupFromCache(newVersion.AppName)
+	_ = deleteMenusLookupFromCache(newVersion.ID)
+	_ = deleteAllVersionMenusFromCache(newVersion.ID)
+	for i := range locales {
+		_ = deleteVersionMenusFromCache(newVersion.ID, locales[i])
+		if settings.Footer {
+			_ = deleteFooterFromCache(newVersion.ID, locales[i])
+		}
+	}
+	for _, newMenuItemID := range menuItemMapping {
+		for i := range locales {
+			_ = deletePageFromCache(newMenuItemID, locales[i])
+		}
+	}
+
+	return newVersion, nil
+}
+
 // PublishVersion method to publish a version.
 func PublishVersion(appName string, versionID uint) error {
 	// Start a new transaction
@@ -259,6 +365,276 @@ func RestoreVersion(versionID uint) error {
 	}
 
 	return err
+}
+
+// duplicateMenuSelection represents the selection of a menu and its items to duplicate.
+type duplicateMenuSelection struct {
+	allItems bool
+	itemIDs  map[uint]struct{}
+}
+
+// buildDuplicateMenuSelections determines which menus/items to duplicate based on settings.
+func buildDuplicateMenuSelections(sourceMenus []models.Menu, settings *requests.CreateDuplicateVersion) map[uint]*duplicateMenuSelection {
+	selections := make(map[uint]*duplicateMenuSelection)
+
+	requestedMenuIDs := make(map[uint]struct{})
+	if settings.Menus != nil && len(*settings.Menus) > 0 {
+		for i := range *settings.Menus {
+			requestedMenuIDs[(*settings.Menus)[i]] = struct{}{}
+			selections[(*settings.Menus)[i]] = &duplicateMenuSelection{allItems: true, itemIDs: make(map[uint]struct{})}
+		}
+	}
+
+	requestedMenuItemIDs := make(map[uint]struct{})
+	if settings.MenuItems != nil && len(*settings.MenuItems) > 0 {
+		for i := range *settings.MenuItems {
+			requestedMenuItemIDs[(*settings.MenuItems)[i]] = struct{}{}
+		}
+	}
+
+	if len(requestedMenuIDs) == 0 && len(requestedMenuItemIDs) == 0 {
+		for i := range sourceMenus {
+			selections[sourceMenus[i].ID] = &duplicateMenuSelection{allItems: true, itemIDs: make(map[uint]struct{})}
+		}
+		return selections
+	}
+
+	childRelations := make(map[uint][]models.MenuItemRelation)
+	menuParentByChild := make(map[uint]map[uint]sql.Null[uint])
+
+	for i := range sourceMenus {
+		menu := sourceMenus[i]
+		if _, ok := menuParentByChild[menu.ID]; !ok {
+			menuParentByChild[menu.ID] = make(map[uint]sql.Null[uint])
+		}
+
+		for j := range menu.MenuItemRelations {
+			rel := menu.MenuItemRelations[j]
+			childRelations[rel.MenuItemChildID] = append(childRelations[rel.MenuItemChildID], rel)
+			menuParentByChild[menu.ID][rel.MenuItemChildID] = rel.MenuItemParentID
+		}
+	}
+
+	for menuItemID := range requestedMenuItemIDs {
+		relations, ok := childRelations[menuItemID]
+		if !ok {
+			continue
+		}
+
+		for i := range relations {
+			rel := relations[i]
+			selection, ok := selections[rel.MenuID]
+			if !ok {
+				selection = &duplicateMenuSelection{allItems: false, itemIDs: make(map[uint]struct{})}
+				selections[rel.MenuID] = selection
+			}
+
+			if selection.allItems {
+				continue
+			}
+
+			currentID := rel.MenuItemChildID
+			for {
+				selection.itemIDs[currentID] = struct{}{}
+
+				parent := menuParentByChild[rel.MenuID][currentID]
+				if !parent.Valid {
+					break
+				}
+
+				currentID = parent.V
+			}
+		}
+	}
+
+	return selections
+}
+
+// buildCreateMenuItemsFromSource builds a creation DTO tree and a path->oldID map for item remapping.
+func buildCreateMenuItemsFromSource(menu *models.Menu, selection *duplicateMenuSelection) ([]requests.CreateMenuItem, map[string]uint) {
+	relationsByParent := make(map[uint][]models.MenuItemRelation)
+	oldIDByPath := make(map[string]uint)
+
+	parentByChild := make(map[uint]sql.Null[uint], len(menu.MenuItemRelations))
+	relationByChild := make(map[uint]models.MenuItemRelation, len(menu.MenuItemRelations))
+	for i := range menu.MenuItemRelations {
+		rel := menu.MenuItemRelations[i]
+		parentByChild[rel.MenuItemChildID] = rel.MenuItemParentID
+		relationByChild[rel.MenuItemChildID] = rel
+	}
+
+	for i := range menu.MenuItemRelations {
+		rel := menu.MenuItemRelations[i]
+		if !selection.allItems {
+			if _, ok := selection.itemIDs[rel.MenuItemChildID]; !ok {
+				continue
+			}
+		}
+
+		path := buildMenuItemPath(rel, relationByChild, parentByChild)
+		oldIDByPath[path] = rel.MenuItemChildID
+
+		parentKey := uint(0)
+		if rel.MenuItemParentID.Valid {
+			parentKey = rel.MenuItemParentID.V
+		}
+		relationsByParent[parentKey] = append(relationsByParent[parentKey], rel)
+	}
+
+	var createItems func(parentID uint) []requests.CreateMenuItem
+	createItems = func(parentID uint) []requests.CreateMenuItem {
+		relations := relationsByParent[parentID]
+		items := make([]requests.CreateMenuItem, 0, len(relations))
+
+		for i := range relations {
+			rel := relations[i]
+			item := requests.CreateMenuItem{}
+			item.SetMenuItemRelation(rel)
+
+			item.Items = createItems(rel.MenuItemChildID)
+			items = append(items, item)
+		}
+
+		return items
+	}
+
+	return createItems(0), oldIDByPath
+}
+
+// buildMenuItemPath creates a deterministic position path for one relation within its menu tree.
+func buildMenuItemPath(rel models.MenuItemRelation, relationByChild map[uint]models.MenuItemRelation, parentByChild map[uint]sql.Null[uint]) string {
+	segments := make([]string, 0, 4)
+	current := rel
+
+	for {
+		segments = append(segments, fmt.Sprintf("%d", current.Position))
+		parent := parentByChild[current.MenuItemChildID]
+		if !parent.Valid {
+			break
+		}
+
+		next, ok := relationByChild[parent.V]
+		if !ok {
+			break
+		}
+		current = next
+	}
+
+	for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
+		segments[i], segments[j] = segments[j], segments[i]
+	}
+
+	return strings.Join(segments, "/")
+}
+
+// buildMenuItemPathMap creates a position-path lookup for menu item IDs.
+func buildMenuItemPathMap(relations []models.MenuItemRelation) map[string]uint {
+	pathMap := make(map[string]uint, len(relations))
+	parentByChild := make(map[uint]sql.Null[uint], len(relations))
+	relationByChild := make(map[uint]models.MenuItemRelation, len(relations))
+
+	for i := range relations {
+		rel := relations[i]
+		parentByChild[rel.MenuItemChildID] = rel.MenuItemParentID
+		relationByChild[rel.MenuItemChildID] = rel
+	}
+
+	for i := range relations {
+		rel := relations[i]
+		path := buildMenuItemPath(rel, relationByChild, parentByChild)
+		pathMap[path] = rel.MenuItemChildID
+	}
+
+	return pathMap
+}
+
+// duplicatePages clones pages/partials/indexing from old menu items to the new mapped menu items.
+func duplicatePages(tx *gorm.DB, menuItemMapping map[uint]uint, locales []string) error {
+	for oldMenuItemID, newMenuItemID := range menuItemMapping {
+		for i := range locales {
+			locale := locales[i]
+
+			sourcePage := &models.Page{}
+			result := tx.
+				Preload("Indexing").
+				Preload("Partials", preloadPagePartialTree).
+				Where("menu_item_id = ? AND locale = ?", oldMenuItemID, locale).
+				Limit(1).
+				Find(sourcePage)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				continue
+			}
+
+			targetPage := &models.Page{MenuItemID: newMenuItemID, Locale: sourcePage.Locale, Name: sourcePage.Name}
+
+			if err := tx.Create(targetPage).Error; err != nil {
+				return err
+			}
+
+			updatePage := requests.UpdatePage{}
+			updatePage.SetPage(*sourcePage)
+			if _, err := UpdatePageWithTx(tx, targetPage, &updatePage); err != nil {
+				return err
+			}
+
+			for j := range sourcePage.Partials {
+				sourcePartial := sourcePage.Partials[j]
+				targetPartial := &models.PagePartial{
+					MenuItemID: targetPage.MenuItemID,
+					Locale:     targetPage.Locale,
+					Name:       sourcePartial.Name,
+				}
+
+				if err := tx.Create(targetPartial).Error; err != nil {
+					return err
+				}
+
+				updatePartial := requests.UpdatePagePartial{}
+				updatePartial.SetPagePartial(sourcePartial, targetPartial.ID)
+				if _, err := UpdatePagePartialWithTx(tx, targetPartial, &updatePartial); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// duplicateFooter clones footer rows/columns for the selected locales into the target version.
+func duplicateFooter(tx *gorm.DB, sourceVersionID, targetVersionID uint, locales []string) error {
+	for i := range locales {
+		locale := locales[i]
+		sourceRows := make([]models.FooterRow, 0)
+
+		if err := preloadFooterTree(tx).
+			Where("NOT EXISTS (SELECT 1 FROM footer_row_column_rows frcr WHERE frcr.row_id = footer_rows.id)").
+			Order("position asc").
+			Find(&sourceRows, "version_id = ? AND locale = ?", sourceVersionID, locale).Error; err != nil {
+			return err
+		}
+
+		if len(sourceRows) == 0 {
+			continue
+		}
+
+		dtoRows := make([]requests.UpdateFooterRow, 0, len(sourceRows))
+		for j := range sourceRows {
+			dtoRow := requests.UpdateFooterRow{}
+			dtoRow.SetFooterRow(sourceRows[j], targetVersionID, locale)
+			dtoRows = append(dtoRows, dtoRow)
+		}
+
+		existingRows := make([]models.FooterRow, 0)
+		if _, err := UpdateFooterWithTx(tx, targetVersionID, locale, &existingRows, &requests.UpdateFooter{Rows: dtoRows}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getVersionsLookupCacheKey gets the key for the cache.

@@ -227,66 +227,89 @@ func GetVersionIDByMenuItemID(menuItemID uint) (uint, error) {
 
 // CreateMenu method to create a menu.
 func CreateMenu(menu *requests.CreateMenu) (*models.Menu, error) {
-	m := &models.Menu{VersionID: menu.VersionID, Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}
-
-	result := &models.Menu{}
+	var result *models.Menu
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
-		if err := tx.FirstOrCreate(&result, m).Error; err != nil {
-			return err
-		}
-
-		// Ensure slice is initialized.
-		result.MenuItemRelations = make([]models.MenuItemRelation, 0)
-
-		// Persist hierarchical menu items and their relations while populating result.
-		for i := range menu.Items {
-			if _, err := createMenuItemHierarchy(tx, result, nil, &menu.Items[i]); err != nil {
-				return err
-			}
-		}
-
-		// Sort relations grouped by parent and by position.
-		sortMenuItemRelations(result.MenuItemRelations)
-
-		return nil
+		var txErr error
+		result, txErr = CreateMenuWithTx(tx, menu)
+		return txErr
 	}); err != nil {
 		return nil, err
 	}
 
-	_ = deleteMenusLookupFromCache(m.VersionID)
-	_ = deleteAllVersionMenusFromCache(m.VersionID)
+	_ = deleteMenusLookupFromCache(menu.VersionID)
+	_ = deleteAllVersionMenusFromCache(menu.VersionID)
+
+	return result, nil
+}
+
+// CreateMenuWithTx creates a menu using the provided transaction.
+// It performs no transaction lifecycle control and no cache side effects.
+func CreateMenuWithTx(tx *gorm.DB, menu *requests.CreateMenu) (*models.Menu, error) {
+	if tx == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+
+	m := &models.Menu{VersionID: menu.VersionID, Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}
+
+	result := &models.Menu{}
+	if err := tx.FirstOrCreate(&result, m).Error; err != nil {
+		return nil, err
+	}
+
+	// Ensure slice is initialized.
+	result.MenuItemRelations = make([]models.MenuItemRelation, 0)
+
+	// Persist hierarchical menu items and their relations while populating result.
+	for i := range menu.Items {
+		if _, err := createMenuItemHierarchy(tx, result, nil, &menu.Items[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	// Sort relations grouped by parent and by position.
+	sortMenuItemRelations(result.MenuItemRelations)
 
 	return result, nil
 }
 
 // UpdateMenu method to update a menu.
 func UpdateMenu(oldMenu *models.Menu, menu *requests.UpdateMenu) (*models.Menu, error) {
-	// Persist updates in a transaction to keep tree consistent.
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&oldMenu).
-			Clauses(clause.Returning{Columns: []clause.Column{{Name: "name"}, {Name: "updated_at"}}}).
-			Updates(models.Menu{Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}).Error; err != nil {
-			return err
-		}
-
-		// Reset in-memory relations; we'll rebuild from DTO.
-		oldMenu.MenuItemRelations = make([]models.MenuItemRelation, 0)
-
-		// Reconcile top-level items (parent is nil).
-		if err := reconcileMenuItems(tx, oldMenu, nil, menu.Items); err != nil {
-			return err
-		}
-
-		// Sort relations grouped by parent and by position.
-		sortMenuItemRelations(oldMenu.MenuItemRelations)
-
-		return nil
+		_, txErr := UpdateMenuWithTx(tx, oldMenu, menu)
+		return txErr
 	}); err != nil {
 		return nil, err
 	}
 
 	_ = deleteMenusLookupFromCache(oldMenu.VersionID)
 	_ = deleteAllVersionMenusFromCache(oldMenu.VersionID)
+
+	return oldMenu, nil
+}
+
+// UpdateMenuWithTx updates a menu using the provided transaction.
+// It performs no transaction lifecycle control and no cache side effects.
+func UpdateMenuWithTx(tx *gorm.DB, oldMenu *models.Menu, menu *requests.UpdateMenu) (*models.Menu, error) {
+	if tx == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+
+	if err := tx.Model(&oldMenu).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "name"}, {Name: "updated_at"}}}).
+		Updates(models.Menu{Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}).Error; err != nil {
+		return nil, err
+	}
+
+	// Reset in-memory relations; we'll rebuild from DTO.
+	oldMenu.MenuItemRelations = make([]models.MenuItemRelation, 0)
+
+	// Reconcile top-level items (parent is nil).
+	if err := reconcileMenuItems(tx, oldMenu, nil, menu.Items); err != nil {
+		return nil, err
+	}
+
+	// Sort relations grouped by parent and by position.
+	sortMenuItemRelations(oldMenu.MenuItemRelations)
 
 	return oldMenu, nil
 }

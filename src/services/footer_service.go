@@ -49,25 +49,39 @@ func GetFooterByVersionID(versionID uint, locale string) (*[]models.FooterRow, e
 // UpdateFooter updates the given Footer and its associated rows and columns
 // based on the data provided in the UpdateFooter request.
 func UpdateFooter(versionID uint, locale string, footerRows *[]models.FooterRow, dtoFooter *requests.UpdateFooter) (*[]models.FooterRow, error) {
-	result := make([]models.FooterRow, 0)
+	var result *[]models.FooterRow
 
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
-		existingRows := make([]models.FooterRow, len(*footerRows))
-		copy(existingRows, *footerRows)
-
-		rows, err := syncFooterRows(tx, versionID, locale, nil, existingRows, dtoFooter.Rows, 1)
-		if err != nil {
-			return err
-		}
-
-		result = append(result, rows...)
-
-		return nil
+		var txErr error
+		result, txErr = UpdateFooterWithTx(tx, versionID, locale, footerRows, dtoFooter)
+		return txErr
 	}); err != nil {
 		return nil, err
 	}
 
 	_ = deleteFooterFromCache(versionID, locale)
+
+	return result, nil
+}
+
+// UpdateFooterWithTx updates footer rows/columns using the provided transaction.
+// It performs no transaction lifecycle control and no cache side effects.
+func UpdateFooterWithTx(tx *gorm.DB, versionID uint, locale string, footerRows *[]models.FooterRow, dtoFooter *requests.UpdateFooter) (*[]models.FooterRow, error) {
+	if tx == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+
+	result := make([]models.FooterRow, 0)
+
+	existingRows := make([]models.FooterRow, len(*footerRows))
+	copy(existingRows, *footerRows)
+
+	rows, err := syncFooterRows(tx, versionID, locale, nil, existingRows, dtoFooter.Rows, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	result = append(result, rows...)
 
 	return &result, nil
 }
@@ -191,7 +205,7 @@ func syncFooterColumns(tx *gorm.DB, versionID, rowID uint, locale string, existi
 
 		col.FooterRowID = rowID
 		col.Position = utils.UintOrZero(dtoCol.Position)
-		col.ModuleID = utils.NewNullUInt(dtoCol.ModuleID)
+		col.ModuleID = utils.NewNullUint(dtoCol.ModuleID)
 		col.Cols = dtoCol.Cols
 		col.Xxl = utils.NewNullInt16(dtoCol.Xxl)
 		col.Xl = utils.NewNullInt16(dtoCol.Xl)

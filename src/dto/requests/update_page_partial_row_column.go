@@ -1,6 +1,10 @@
 package requests
 
-import "time"
+import (
+	"api-page/main/src/models"
+	"api-page/main/src/utils"
+	"time"
+)
 
 type UpdatePagePartialRowColumn struct {
 	ID       *uint `json:"id" `
@@ -31,4 +35,38 @@ type UpdatePagePartialRowColumn struct {
 	Content   *string                `json:"content"`
 	UpdatedAt *time.Time             `json:"updatedAt"`
 	Rows      []UpdatePagePartialRow `json:"rows" validate:"dive"`
+}
+
+func (u *UpdatePagePartialRowColumn) SetPagePartialRowColumn(column models.PagePartialRowColumn, partialID uint) {
+	rows := make([]UpdatePagePartialRow, 0, len(column.PagePartialRows))
+	for i := range column.PagePartialRows {
+		row := UpdatePagePartialRow{}
+		row.SetPagePartialRow(column.PagePartialRows[i], partialID)
+		rows = append(rows, row)
+	}
+
+	u.ModuleID = utils.PtrFromNullUint(column.ModuleID)
+	u.Position = utils.PtrFromUint(column.Position)
+	u.Cols = column.Cols
+	u.Xxl = utils.PtrFromNullInt16(column.Xxl)
+	u.Xl = utils.PtrFromNullInt16(column.Xl)
+	u.Lg = utils.PtrFromNullInt16(column.Lg)
+	u.Md = utils.PtrFromNullInt16(column.Md)
+	u.Sm = utils.PtrFromNullInt16(column.Sm)
+	u.Xs = utils.PtrFromNullInt16(column.Xs)
+	u.Offset = utils.PtrFromNullInt16(column.Offset)
+	u.OffsetXxl = utils.PtrFromNullInt16(column.OffsetXxl)
+	u.OffsetXl = utils.PtrFromNullInt16(column.OffsetXl)
+	u.OffsetLg = utils.PtrFromNullInt16(column.OffsetLg)
+	u.OffsetMd = utils.PtrFromNullInt16(column.OffsetMd)
+	u.OffsetSm = utils.PtrFromNullInt16(column.OffsetSm)
+	u.Order = utils.PtrFromNullInt16(column.Order)
+	u.OrderXxl = utils.PtrFromNullInt16(column.OrderXxl)
+	u.OrderXl = utils.PtrFromNullInt16(column.OrderXl)
+	u.OrderLg = utils.PtrFromNullInt16(column.OrderLg)
+	u.OrderMd = utils.PtrFromNullInt16(column.OrderMd)
+	u.OrderSm = utils.PtrFromNullInt16(column.OrderSm)
+	u.AlignSelf = utils.PtrFromNullString(column.AlignSelf)
+	u.Content = utils.PtrFromNullString(column.Content)
+	u.Rows = rows
 }

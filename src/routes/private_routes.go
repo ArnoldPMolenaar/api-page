@@ -27,6 +27,7 @@ func PrivateRoutes(a *fiber.App) {
 	versions.Get("/:id", middleware.MachineProtected(), controllers.GetVersionByID)
 	versions.Get("/:id/footer", middleware.MachineProtected(), controllers.GetFooterByVersionID)
 	versions.Put("/:id", middleware.MachineProtected(), controllers.UpdateVersion)
+	versions.Put("/:id/duplicate", middleware.MachineProtected(), controllers.DuplicateVersion)
 	versions.Put("/:id/footer", middleware.MachineProtected(), controllers.UpdateFooter)
 	versions.Delete("/:id", middleware.MachineProtected(), controllers.DeleteVersion)
 	versions.Put("/:id/publish", middleware.MachineProtected(), controllers.PublishVersion)

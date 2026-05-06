@@ -255,6 +255,31 @@ func CreatePagePartial(page *models.Page, request *requests.CreatePagePartial) (
 
 // UpdatePage updates the given Page with data from the UpdatePage request.
 func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, error) {
+	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
+		_, txErr := UpdatePageWithTx(tx, page, request)
+		return txErr
+	}); err != nil {
+		return nil, err
+	}
+
+	// Invalidate cache for version menus related to this page.
+	versionID, err := GetVersionIDByMenuItemID(page.MenuItemID)
+	if err != nil {
+		return nil, err
+	}
+	_ = deleteVersionMenusFromCache(versionID, page.Locale)
+	_ = deletePageFromCache(page.MenuItemID, page.Locale)
+
+	return page, nil
+}
+
+// UpdatePageWithTx updates the given Page using the provided transaction.
+// It performs no transaction lifecycle control and no cache side effects.
+func UpdatePageWithTx(tx *gorm.DB, page *models.Page, request *requests.UpdatePage) (*models.Page, error) {
+	if tx == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+
 	if isPageDeleted, err := IsPageDeleted(page.MenuItemID, page.Locale); err != nil {
 		return nil, err
 	} else if isPageDeleted {
@@ -273,62 +298,43 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 	page.EnabledAt = utils.NewNullTime(request.EnabledAt)
 	page.Indexing = make([]models.PageIndexing, 0)
 
-	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&page).
-			Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
-			Updates(page).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		existing := make([]models.PageIndexing, 0)
-		if err := tx.Where("menu_item_id = ? AND locale = ?", page.MenuItemID, page.Locale).Find(&existing).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		desired := make(map[enums.Indexing]*string, len(request.Indexing))
-		for i := range request.Indexing {
-			opt := enums.Indexing(request.Indexing[i].Option)
-			desired[opt] = request.Indexing[i].Value
-			pi := &models.PageIndexing{MenuItemID: page.MenuItemID, Locale: page.Locale, Option: opt}
-			pi.Value = utils.NewNullString(request.Indexing[i].Value)
-			if err := tx.FirstOrCreate(pi, pi).Error; err != nil {
-				tx.Rollback()
-				return err
-			}
-			// Ensure value is updated when it already existed.
-			if err := tx.Model(&models.PageIndexing{}).
-				Where("menu_item_id = ? AND locale = ? AND option = ?", page.MenuItemID, page.Locale, opt).
-				Updates(map[string]interface{}{"value": pi.Value}).Error; err != nil {
-				tx.Rollback()
-				return err
-			}
-
-			page.Indexing = append(page.Indexing, *pi)
-		}
-
-		for i := range existing {
-			if _, ok := desired[existing[i].Option]; !ok {
-				if err := tx.Delete(&existing[i]).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
-		}
-
-		return nil
-	}); err != nil {
+	if err := tx.Model(&page).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
+		Updates(page).Error; err != nil {
 		return nil, err
 	}
 
-	// Invalidate cache for version menus related to this page.
-	versionID, err := GetVersionIDByMenuItemID(page.MenuItemID)
-	if err != nil {
+	existing := make([]models.PageIndexing, 0)
+	if err := tx.Where("menu_item_id = ? AND locale = ?", page.MenuItemID, page.Locale).Find(&existing).Error; err != nil {
 		return nil, err
 	}
-	_ = deleteVersionMenusFromCache(versionID, page.Locale)
-	_ = deletePageFromCache(page.MenuItemID, page.Locale)
+
+	desired := make(map[enums.Indexing]*string, len(request.Indexing))
+	for i := range request.Indexing {
+		opt := enums.Indexing(request.Indexing[i].Option)
+		desired[opt] = request.Indexing[i].Value
+		pi := &models.PageIndexing{MenuItemID: page.MenuItemID, Locale: page.Locale, Option: opt}
+		pi.Value = utils.NewNullString(request.Indexing[i].Value)
+		if err := tx.FirstOrCreate(pi, pi).Error; err != nil {
+			return nil, err
+		}
+		// Ensure value is updated when it already existed.
+		if err := tx.Model(&models.PageIndexing{}).
+			Where("menu_item_id = ? AND locale = ? AND option = ?", page.MenuItemID, page.Locale, opt).
+			Updates(map[string]interface{}{"value": pi.Value}).Error; err != nil {
+			return nil, err
+		}
+
+		page.Indexing = append(page.Indexing, *pi)
+	}
+
+	for i := range existing {
+		if _, ok := desired[existing[i].Option]; !ok {
+			if err := tx.Delete(&existing[i]).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	return page, nil
 }
@@ -336,30 +342,42 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 // UpdatePagePartial updates the given PagePartial and its associated rows and columns
 // based on the data provided in the UpdatePagePartial request.
 func UpdatePagePartial(menuItemID uint, locale string, partial *models.PagePartial, dtoPartial *requests.UpdatePagePartial) (*models.PagePartial, error) {
-	partial.Name = dtoPartial.Name
-
 	if err := database.Pg.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(partial).
-			Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
-			Updates(partial).Error; err != nil {
-			return err
-		}
-
-		existingRows := make([]models.PagePartialRow, len(partial.Rows))
-		copy(existingRows, partial.Rows)
-
-		rows, err := syncPagePartialRows(tx, partial.ID, nil, existingRows, dtoPartial.Rows, 1)
-		if err != nil {
-			return err
-		}
-
-		partial.Rows = rows
-		return nil
+		_, txErr := UpdatePagePartialWithTx(tx, partial, dtoPartial)
+		return txErr
 	}); err != nil {
 		return nil, err
 	}
 
 	_ = deletePageFromCache(menuItemID, locale)
+
+	return partial, nil
+}
+
+// UpdatePagePartialWithTx updates the given PagePartial using the provided transaction.
+// It performs no transaction lifecycle control and no cache side effects.
+func UpdatePagePartialWithTx(tx *gorm.DB, partial *models.PagePartial, dtoPartial *requests.UpdatePagePartial) (*models.PagePartial, error) {
+	if tx == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+
+	partial.Name = dtoPartial.Name
+
+	if err := tx.Model(partial).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
+		Updates(partial).Error; err != nil {
+		return nil, err
+	}
+
+	existingRows := make([]models.PagePartialRow, len(partial.Rows))
+	copy(existingRows, partial.Rows)
+
+	rows, err := syncPagePartialRows(tx, partial.ID, nil, existingRows, dtoPartial.Rows, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	partial.Rows = rows
 
 	return partial, nil
 }
@@ -482,7 +500,7 @@ func syncPagePartialColumns(tx *gorm.DB, partialID, rowID uint, existingColumns 
 
 		col.PagePartialRowID = rowID
 		col.Position = utils.UintOrZero(dtoCol.Position)
-		col.ModuleID = utils.NewNullUInt(dtoCol.ModuleID)
+		col.ModuleID = utils.NewNullUint(dtoCol.ModuleID)
 		col.Cols = dtoCol.Cols
 		col.Xxl = utils.NewNullInt16(dtoCol.Xxl)
 		col.Xl = utils.NewNullInt16(dtoCol.Xl)
