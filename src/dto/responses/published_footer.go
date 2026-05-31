@@ -9,8 +9,8 @@ type PublishedFooter struct {
 // SetFooter to bind the rows from models.FooterRow.
 func (pfr *PublishedFooter) SetFooter(rows *[]models.FooterRow) {
 	pfr.Rows = make([]PublishedFooterRow, len(*rows))
-	for i, row := range *rows {
+	for i := range *rows {
 		pfr.Rows[i] = PublishedFooterRow{}
-		pfr.Rows[i].SetFooterRow(&row)
+		pfr.Rows[i].SetFooterRow(&(*rows)[i])
 	}
 }

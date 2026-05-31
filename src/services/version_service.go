@@ -6,18 +6,19 @@ import (
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/dto/responses"
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ArnoldPMolenaar/api-utils/pagination"
-	"github.com/gofiber/fiber/v2"
+	"github.com/ArnoldPMolenaar/api-utils/utils"
+	"github.com/gofiber/fiber/v3"
 	"github.com/valkey-io/valkey-go"
 	"gorm.io/gorm"
 )
@@ -58,7 +59,7 @@ func IsVersionDeleted(versionID uint) (bool, error) {
 }
 
 // GetVersions method to get paginated versions.
-func GetVersions(c *fiber.Ctx) (*pagination.Model, error) {
+func GetVersions(c fiber.Ctx) (*pagination.Model, error) {
 	versions := make([]models.Version, 0)
 	values := c.Request().URI().QueryArgs()
 	allowedColumns := map[string]bool{
@@ -74,11 +75,11 @@ func GetVersions(c *fiber.Ctx) (*pagination.Model, error) {
 
 	queryFunc := pagination.Query(values, allowedColumns)
 	sortFunc := pagination.Sort(values, allowedColumns)
-	page := c.QueryInt("page", 1)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
 	if page < 1 {
 		page = 1
 	}
-	limit := c.QueryInt("limit", 10)
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 {
 		limit = 10
 	}
@@ -193,7 +194,11 @@ func CreateVersion(version *requests.CreateVersion) (*models.Version, error) {
 }
 
 // UpdateVersion method to update a version.
-func UpdateVersion(oldVersion models.Version, version *requests.UpdateVersion) (*models.Version, error) {
+func UpdateVersion(oldVersion *models.Version, version *requests.UpdateVersion) (*models.Version, error) {
+	if oldVersion == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	oldVersion.Name = version.Name
 	if version.EnabledAt != nil {
 		oldVersion.EnabledAt = sql.NullTime{Time: *version.EnabledAt, Valid: true}
@@ -201,13 +206,13 @@ func UpdateVersion(oldVersion models.Version, version *requests.UpdateVersion) (
 		oldVersion.EnabledAt = sql.NullTime{Valid: false}
 	}
 
-	if result := database.Pg.Save(&oldVersion); result.Error != nil {
+	if result := database.Pg.Save(oldVersion); result.Error != nil {
 		return nil, result.Error
 	}
 
 	_ = deleteVersionsLookupFromCache(oldVersion.AppName)
 
-	return &oldVersion, nil
+	return oldVersion, nil
 }
 
 // DuplicateVersion method to duplicate a version with selected menus/items and locales,
@@ -263,7 +268,7 @@ func DuplicateVersion(oldVersion *models.Version, settings *requests.CreateDupli
 			menuCreate := &requests.CreateMenu{
 				VersionID: newVersion.ID,
 				Name:      sourceMenu.Name,
-				Depth:     utils.PtrFromNullUint8(sourceMenu.Depth),
+				Depth:     utils.PtrFromNull[uint8](sourceMenu.Depth),
 				Items:     items,
 			}
 
@@ -451,9 +456,9 @@ func buildDuplicateMenuSelections(sourceMenus []models.Menu, settings *requests.
 }
 
 // buildCreateMenuItemsFromSource builds a creation DTO tree and a path->oldID map for item remapping.
-func buildCreateMenuItemsFromSource(menu *models.Menu, selection *duplicateMenuSelection) ([]requests.CreateMenuItem, map[string]uint) {
+func buildCreateMenuItemsFromSource(menu *models.Menu, selection *duplicateMenuSelection) (items []requests.CreateMenuItem, oldIDByPath map[string]uint) {
 	relationsByParent := make(map[uint][]models.MenuItemRelation)
-	oldIDByPath := make(map[string]uint)
+	oldIDByPath = make(map[string]uint)
 
 	parentByChild := make(map[uint]sql.Null[uint], len(menu.MenuItemRelations))
 	relationByChild := make(map[uint]models.MenuItemRelation, len(menu.MenuItemRelations))
@@ -471,7 +476,7 @@ func buildCreateMenuItemsFromSource(menu *models.Menu, selection *duplicateMenuS
 			}
 		}
 
-		path := buildMenuItemPath(rel, relationByChild, parentByChild)
+		path := buildMenuItemPath(&rel, relationByChild, parentByChild)
 		oldIDByPath[path] = rel.MenuItemChildID
 
 		parentKey := uint(0)
@@ -489,7 +494,7 @@ func buildCreateMenuItemsFromSource(menu *models.Menu, selection *duplicateMenuS
 		for i := range relations {
 			rel := relations[i]
 			item := requests.CreateMenuItem{}
-			item.SetMenuItemRelation(rel)
+			item.SetMenuItemRelation(&rel)
 
 			item.Items = createItems(rel.MenuItemChildID)
 			items = append(items, item)
@@ -498,13 +503,19 @@ func buildCreateMenuItemsFromSource(menu *models.Menu, selection *duplicateMenuS
 		return items
 	}
 
-	return createItems(0), oldIDByPath
+	items = createItems(0)
+
+	return
 }
 
 // buildMenuItemPath creates a deterministic position path for one relation within its menu tree.
-func buildMenuItemPath(rel models.MenuItemRelation, relationByChild map[uint]models.MenuItemRelation, parentByChild map[uint]sql.Null[uint]) string {
+func buildMenuItemPath(rel *models.MenuItemRelation, relationByChild map[uint]models.MenuItemRelation, parentByChild map[uint]sql.Null[uint]) string {
+	if rel == nil {
+		return ""
+	}
+
 	segments := make([]string, 0, 4)
-	current := rel
+	current := *rel
 
 	for {
 		segments = append(segments, fmt.Sprintf("%d", current.Position))
@@ -541,7 +552,7 @@ func buildMenuItemPathMap(relations []models.MenuItemRelation) map[string]uint {
 
 	for i := range relations {
 		rel := relations[i]
-		path := buildMenuItemPath(rel, relationByChild, parentByChild)
+		path := buildMenuItemPath(&rel, relationByChild, parentByChild)
 		pathMap[path] = rel.MenuItemChildID
 	}
 
@@ -575,7 +586,7 @@ func duplicatePages(tx *gorm.DB, menuItemMapping map[uint]uint, locales []string
 			}
 
 			updatePage := requests.UpdatePage{}
-			updatePage.SetPage(*sourcePage)
+			updatePage.SetPage(sourcePage)
 			if _, err := UpdatePageWithTx(tx, targetPage, &updatePage); err != nil {
 				return err
 			}
@@ -593,7 +604,7 @@ func duplicatePages(tx *gorm.DB, menuItemMapping map[uint]uint, locales []string
 				}
 
 				updatePartial := requests.UpdatePagePartial{}
-				updatePartial.SetPagePartial(sourcePartial, targetPartial.ID)
+				updatePartial.SetPagePartial(&sourcePartial, targetPartial.ID)
 				if _, err := UpdatePagePartialWithTx(tx, targetPartial, &updatePartial); err != nil {
 					return err
 				}
@@ -624,7 +635,7 @@ func duplicateFooter(tx *gorm.DB, sourceVersionID, targetVersionID uint, locales
 		dtoRows := make([]requests.UpdateFooterRow, 0, len(sourceRows))
 		for j := range sourceRows {
 			dtoRow := requests.UpdateFooterRow{}
-			dtoRow.SetFooterRow(sourceRows[j], targetVersionID, locale)
+			dtoRow.SetFooterRow(&sourceRows[j], targetVersionID, locale)
 			dtoRows = append(dtoRows, dtoRow)
 		}
 
@@ -670,7 +681,7 @@ func getVersionsLookupFromCache(appName string) (*[]models.Version, error) {
 	}
 
 	var versions []models.Version
-	if err = json.Unmarshal([]byte(value), &versions); err != nil {
+	if err := json.Unmarshal([]byte(value), &versions); err != nil {
 		return nil, err
 	}
 

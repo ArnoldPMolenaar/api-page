@@ -5,11 +5,11 @@ import (
 	"api-page/main/src/services"
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // GetPluginTypeLookup func for getting plugin type lookup.
-func GetPluginTypeLookup(c *fiber.Ctx) error {
+func GetPluginTypeLookup(c fiber.Ctx) error {
 	appParam := c.Query("app")
 	var appName *string
 	if appParam != "" {

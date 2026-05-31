@@ -84,7 +84,7 @@ func getPluginTypesLookupFromCache(appName *string) (*[]models.PluginType, error
 	}
 
 	var pluginTypes []models.PluginType
-	if err = json.Unmarshal([]byte(value), &pluginTypes); err != nil {
+	if err := json.Unmarshal([]byte(value), &pluginTypes); err != nil {
 		return nil, err
 	}
 

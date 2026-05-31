@@ -9,9 +9,9 @@ type MenuLookupList struct {
 // SetMenuLookupList sets the list of menu lookups.
 func (mll *MenuLookupList) SetMenuLookupList(menus *[]models.Menu) {
 	mll.Menus = make([]MenuLookup, len(*menus))
-	for i, menu := range *menus {
+	for i := range *menus {
 		var ml MenuLookup
-		ml.SetMenuLookup(&menu)
+		ml.SetMenuLookup(&(*menus)[i])
 		mll.Menus[i] = ml
 	}
 }

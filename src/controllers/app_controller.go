@@ -9,16 +9,16 @@ import (
 	"strings"
 
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 )
 
 // CreateApp method to create an app.
-func CreateApp(c *fiber.Ctx) error {
+func CreateApp(c fiber.Ctx) error {
 	// Parse the request.
 	request := requests.CreateApp{}
-	if err := c.BodyParser(&request); err != nil {
+	if err := c.Bind().Body(&request); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -58,9 +58,9 @@ func normalizeNames(values []string) []string {
 
 // SetAppModuleTypes parses and validates the request, checks the app exists,
 // then synchronizes app -> module_type links to match the provided list.
-func SetAppModuleTypes(c *fiber.Ctx) error {
+func SetAppModuleTypes(c fiber.Ctx) error {
 	request := &requests.SetAppTypes{}
-	if err := c.BodyParser(request); err != nil {
+	if err := c.Bind().Body(request); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -89,9 +89,9 @@ func SetAppModuleTypes(c *fiber.Ctx) error {
 
 // SetAppPluginTypes parses and validates the request, checks the app exists,
 // then synchronizes app -> plugin_type links to match the provided list.
-func SetAppPluginTypes(c *fiber.Ctx) error {
+func SetAppPluginTypes(c fiber.Ctx) error {
 	request := &requests.SetAppTypes{}
-	if err := c.BodyParser(request); err != nil {
+	if err := c.Bind().Body(request); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 

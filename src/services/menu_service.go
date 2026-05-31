@@ -7,18 +7,19 @@ import (
 	"api-page/main/src/dto/responses"
 	"api-page/main/src/enums"
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ArnoldPMolenaar/api-utils/pagination"
-	"github.com/gofiber/fiber/v2"
+	"github.com/ArnoldPMolenaar/api-utils/utils"
+	"github.com/gofiber/fiber/v3"
 	"github.com/valkey-io/valkey-go"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -67,7 +68,7 @@ func IsMenuItemWithAppName(menuItemID uint, appName string) (bool, error) {
 }
 
 // GetMenus method to get paginated menus.
-func GetMenus(c *fiber.Ctx) (*pagination.Model, error) {
+func GetMenus(c fiber.Ctx) (*pagination.Model, error) {
 	menus := make([]models.Menu, 0)
 	values := c.Request().URI().QueryArgs()
 	allowedColumns := map[string]bool{
@@ -80,11 +81,11 @@ func GetMenus(c *fiber.Ctx) (*pagination.Model, error) {
 
 	queryFunc := pagination.Query(values, allowedColumns)
 	sortFunc := pagination.Sort(values, allowedColumns)
-	page := c.QueryInt("page", 1)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
 	if page < 1 {
 		page = 1
 	}
-	limit := c.QueryInt("limit", 10)
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 {
 		limit = 10
 	}
@@ -249,7 +250,7 @@ func CreateMenuWithTx(tx *gorm.DB, menu *requests.CreateMenu) (*models.Menu, err
 		return nil, gorm.ErrInvalidDB
 	}
 
-	m := &models.Menu{VersionID: menu.VersionID, Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}
+	m := &models.Menu{VersionID: menu.VersionID, Name: menu.Name, Depth: utils.NewNull[uint8](menu.Depth)}
 
 	result := &models.Menu{}
 	if err := tx.FirstOrCreate(&result, m).Error; err != nil {
@@ -296,7 +297,7 @@ func UpdateMenuWithTx(tx *gorm.DB, oldMenu *models.Menu, menu *requests.UpdateMe
 
 	if err := tx.Model(&oldMenu).
 		Clauses(clause.Returning{Columns: []clause.Column{{Name: "name"}, {Name: "updated_at"}}}).
-		Updates(models.Menu{Name: menu.Name, Depth: utils.NewNullUint8(menu.Depth)}).Error; err != nil {
+		Updates(models.Menu{Name: menu.Name, Depth: utils.NewNull[uint8](menu.Depth)}).Error; err != nil {
 		return nil, err
 	}
 
@@ -375,7 +376,7 @@ func getMenusLookupFromCache(versionID uint) (*[]models.Menu, error) {
 	}
 
 	var menus []models.Menu
-	if err = json.Unmarshal([]byte(value), &menus); err != nil {
+	if err := json.Unmarshal([]byte(value), &menus); err != nil {
 		return nil, err
 	}
 
@@ -434,7 +435,7 @@ func isVersionMenusInCache(versionID uint) (bool, error) {
 }
 
 // getAllVersionMenusFromCache gets the menus in a version from the cache.
-func getAllVersionMenusFromCache(versionID uint) (*map[string][]models.Menu, error) {
+func getAllVersionMenusFromCache(versionID uint) (map[string][]models.Menu, error) {
 	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Get().Key(getVersionMenusCacheKey(versionID)).Build())
 	if result.Error() != nil {
 		return nil, result.Error()
@@ -446,16 +447,16 @@ func getAllVersionMenusFromCache(versionID uint) (*map[string][]models.Menu, err
 	}
 
 	var versionMenus map[string][]models.Menu
-	if err = json.Unmarshal([]byte(value), &versionMenus); err != nil {
+	if err := json.Unmarshal([]byte(value), &versionMenus); err != nil {
 		return nil, err
 	}
 
-	return &versionMenus, nil
+	return versionMenus, nil
 }
 
 // getVersionMenusFromCache gets the menus in a version with a locale from the cache.
 func getVersionMenusFromCache(versionID uint, locale string) (*[]models.Menu, error) {
-	var versionMenus *map[string][]models.Menu
+	var versionMenus map[string][]models.Menu
 
 	if inCache, err := isVersionMenusInCache(versionID); err != nil {
 		return nil, err
@@ -469,7 +470,7 @@ func getVersionMenusFromCache(versionID uint, locale string) (*[]models.Menu, er
 		return nil, nil
 	}
 
-	if menus, ok := (*versionMenus)[locale]; ok {
+	if menus, ok := versionMenus[locale]; ok {
 		return &menus, nil
 	}
 
@@ -484,7 +485,7 @@ func setVersionMenusToCache(versionID uint, locale string, menus *[]models.Menu)
 		return err
 	}
 
-	var versionMenus *map[string][]models.Menu
+	var versionMenus map[string][]models.Menu
 
 	if inCache, err := isVersionMenusInCache(versionID); err != nil {
 		return err
@@ -495,11 +496,9 @@ func setVersionMenusToCache(versionID uint, locale string, menus *[]models.Menu)
 	}
 
 	if versionMenus == nil {
-		versionMenus = &map[string][]models.Menu{}
-		(*versionMenus)[locale] = *menus
-	} else {
-		(*versionMenus)[locale] = *menus
+		versionMenus = map[string][]models.Menu{}
 	}
+	versionMenus[locale] = *menus
 
 	value, err := json.Marshal(versionMenus)
 	if err != nil {
@@ -516,7 +515,7 @@ func setVersionMenusToCache(versionID uint, locale string, menus *[]models.Menu)
 
 // deleteVersionMenusFromCache deletes existing menus in a version from the cache.
 func deleteVersionMenusFromCache(versionID uint, locale string) error {
-	var versionMenus *map[string][]models.Menu
+	var versionMenus map[string][]models.Menu
 
 	if inCache, err := isVersionMenusInCache(versionID); err != nil {
 		return err
@@ -530,9 +529,9 @@ func deleteVersionMenusFromCache(versionID uint, locale string) error {
 		return nil
 	}
 
-	delete(*versionMenus, locale)
+	delete(versionMenus, locale)
 
-	if len(*versionMenus) > 0 {
+	if len(versionMenus) > 0 {
 		expiration := os.Getenv("VALKEY_EXPIRATION")
 		duration, err := time.ParseDuration(expiration)
 		if err != nil {

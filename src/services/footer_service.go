@@ -5,13 +5,13 @@ import (
 	"api-page/main/src/database"
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 	"github.com/valkey-io/valkey-go"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -205,7 +205,7 @@ func syncFooterColumns(tx *gorm.DB, versionID, rowID uint, locale string, existi
 
 		col.FooterRowID = rowID
 		col.Position = utils.UintOrZero(dtoCol.Position)
-		col.ModuleID = utils.NewNullUint(dtoCol.ModuleID)
+		col.ModuleID = utils.NewNull[uint](dtoCol.ModuleID)
 		col.Cols = dtoCol.Cols
 		col.Xxl = utils.NewNullInt16(dtoCol.Xxl)
 		col.Xl = utils.NewNullInt16(dtoCol.Xl)
@@ -330,7 +330,7 @@ func getFooterFromCache(versionID uint, locale string) (*[]models.FooterRow, err
 	}
 
 	var rows []models.FooterRow
-	if err = json.Unmarshal([]byte(value), &rows); err != nil {
+	if err := json.Unmarshal([]byte(value), &rows); err != nil {
 		return nil, err
 	}
 

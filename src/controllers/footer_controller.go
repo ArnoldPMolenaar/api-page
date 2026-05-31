@@ -9,11 +9,11 @@ import (
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // GetPublishedFooterByVersionID retrieves the published Footer for a given version ID and locale, and returns it as a JSON response.
-func GetPublishedFooterByVersionID(c *fiber.Ctx) error {
+func GetPublishedFooterByVersionID(c fiber.Ctx) error {
 	versionID, err := util.StringToUint(c.Params("id"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -36,7 +36,7 @@ func GetPublishedFooterByVersionID(c *fiber.Ctx) error {
 }
 
 // GetFooterByVersionID retrieves the Footer for a given version ID and locale, and returns it as a JSON response.
-func GetFooterByVersionID(c *fiber.Ctx) error {
+func GetFooterByVersionID(c fiber.Ctx) error {
 	versionID, err := util.StringToUint(c.Params("id"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -59,7 +59,7 @@ func GetFooterByVersionID(c *fiber.Ctx) error {
 }
 
 // UpdateFooter func for updating the rows and columns within the footer.
-func UpdateFooter(c *fiber.Ctx) error {
+func UpdateFooter(c fiber.Ctx) error {
 	versionID, err := util.StringToUint(c.Params("id"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -74,7 +74,7 @@ func UpdateFooter(c *fiber.Ctx) error {
 	footerRequest := &requests.UpdateFooter{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(footerRequest); err != nil {
+	if err := c.Bind().Body(footerRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -117,7 +117,7 @@ func UpdateFooter(c *fiber.Ctx) error {
 }
 
 // collectFooterRowAndColumnVersions func for collecting the versions of rows and columns in a footer rows tree.
-func collectFooterRowAndColumnVersions(rows []models.FooterRow, rowVersions map[uint]int64, columnVersions map[uint]int64, depth int) {
+func collectFooterRowAndColumnVersions(rows []models.FooterRow, rowVersions, columnVersions map[uint]int64, depth int) {
 	if depth > services.MaxRowTreeDepth {
 		return
 	}
@@ -132,7 +132,7 @@ func collectFooterRowAndColumnVersions(rows []models.FooterRow, rowVersions map[
 }
 
 // areRequestedFooterRowsOutOfSync func for checking if any of the requested rows or their columns have been modified since they were last fetched.
-func areRequestedFooterRowsOutOfSync(rows []requests.UpdateFooterRow, rowVersions map[uint]int64, columnVersions map[uint]int64, depth int) bool {
+func areRequestedFooterRowsOutOfSync(rows []requests.UpdateFooterRow, rowVersions, columnVersions map[uint]int64, depth int) bool {
 	if depth > services.MaxRowTreeDepth {
 		return true
 	}

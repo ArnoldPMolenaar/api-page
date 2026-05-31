@@ -11,11 +11,11 @@ type UpdatePagePartial struct {
 	Rows      []UpdatePagePartialRow `json:"rows" validate:"required,min=1,dive"`
 }
 
-func (u *UpdatePagePartial) SetPagePartial(partial models.PagePartial, partialID uint) {
+func (u *UpdatePagePartial) SetPagePartial(partial *models.PagePartial, partialID uint) {
 	rows := make([]UpdatePagePartialRow, 0, len(partial.Rows))
 	for i := range partial.Rows {
 		row := UpdatePagePartialRow{}
-		row.SetPagePartialRow(partial.Rows[i], partialID)
+		row.SetPagePartialRow(&partial.Rows[i], partialID)
 		rows = append(rows, row)
 	}
 

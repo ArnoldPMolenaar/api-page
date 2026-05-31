@@ -9,10 +9,10 @@ import (
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func GetPublishedPageByID(c *fiber.Ctx) error {
+func GetPublishedPageByID(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -37,7 +37,7 @@ func GetPublishedPageByID(c *fiber.Ctx) error {
 }
 
 // GetOrCreatePageByID func for getting or creating a page.
-func GetOrCreatePageByID(c *fiber.Ctx) error {
+func GetOrCreatePageByID(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -62,7 +62,7 @@ func GetOrCreatePageByID(c *fiber.Ctx) error {
 }
 
 // GetPartialByID func for getting a page partial by its ID.
-func GetPartialByID(c *fiber.Ctx) error {
+func GetPartialByID(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -100,7 +100,7 @@ func GetPartialByID(c *fiber.Ctx) error {
 }
 
 // CreatePagePartial func for creating a page partial.
-func CreatePagePartial(c *fiber.Ctx) error {
+func CreatePagePartial(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -115,7 +115,7 @@ func CreatePagePartial(c *fiber.Ctx) error {
 	partialRequest := &requests.CreatePagePartial{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(partialRequest); err != nil {
+	if err := c.Bind().Body(partialRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -154,7 +154,7 @@ func CreatePagePartial(c *fiber.Ctx) error {
 }
 
 // UpdatePage func for updating a page.
-func UpdatePage(c *fiber.Ctx) error {
+func UpdatePage(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -169,7 +169,7 @@ func UpdatePage(c *fiber.Ctx) error {
 	pageRequest := &requests.UpdatePage{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(pageRequest); err != nil {
+	if err := c.Bind().Body(pageRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -206,7 +206,7 @@ func UpdatePage(c *fiber.Ctx) error {
 }
 
 // UpdatePagePartial func for updating a page partial.
-func UpdatePagePartial(c *fiber.Ctx) error {
+func UpdatePagePartial(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -226,7 +226,7 @@ func UpdatePagePartial(c *fiber.Ctx) error {
 	partialRequest := &requests.UpdatePagePartial{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(partialRequest); err != nil {
+	if err := c.Bind().Body(partialRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -280,7 +280,7 @@ func UpdatePagePartial(c *fiber.Ctx) error {
 }
 
 // DeletePage func for deleting a page.
-func DeletePage(c *fiber.Ctx) error {
+func DeletePage(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -308,7 +308,7 @@ func DeletePage(c *fiber.Ctx) error {
 }
 
 // DeletePagePartial func for deleting a partial.
-func DeletePagePartial(c *fiber.Ctx) error {
+func DeletePagePartial(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -356,7 +356,7 @@ func DeletePagePartial(c *fiber.Ctx) error {
 }
 
 // RestorePage func for restoring a deleted page.
-func RestorePage(c *fiber.Ctx) error {
+func RestorePage(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -383,7 +383,7 @@ func RestorePage(c *fiber.Ctx) error {
 }
 
 // RestorePagePartial func for restoring a deleted partial.
-func RestorePagePartial(c *fiber.Ctx) error {
+func RestorePagePartial(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("menuItemId"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -423,7 +423,7 @@ func RestorePagePartial(c *fiber.Ctx) error {
 }
 
 // collectRowAndColumnVersions func for collecting the versions of rows and columns in a page partial tree.
-func collectRowAndColumnVersions(rows []models.PagePartialRow, rowVersions map[uint]int64, columnVersions map[uint]int64, depth int) {
+func collectRowAndColumnVersions(rows []models.PagePartialRow, rowVersions, columnVersions map[uint]int64, depth int) {
 	if depth > services.MaxPagePartialTreeDepth {
 		return
 	}
@@ -438,7 +438,7 @@ func collectRowAndColumnVersions(rows []models.PagePartialRow, rowVersions map[u
 }
 
 // areRequestedRowsOutOfSync func for checking if any of the requested rows or their columns have been modified since they were last fetched.
-func areRequestedRowsOutOfSync(rows []requests.UpdatePagePartialRow, rowVersions map[uint]int64, columnVersions map[uint]int64, depth int) bool {
+func areRequestedRowsOutOfSync(rows []requests.UpdatePagePartialRow, rowVersions, columnVersions map[uint]int64, depth int) bool {
 	if depth > services.MaxPagePartialTreeDepth {
 		return true
 	}

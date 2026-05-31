@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PagePartialRowColumn struct {
@@ -44,69 +46,27 @@ func (pprc *PagePartialRowColumn) SetPagePartialRowColumn(column *models.PagePar
 	pprc.Cols = column.Cols
 	pprc.CreatedAt = column.CreatedAt
 	pprc.UpdatedAt = column.UpdatedAt
-	if column.ModuleID.Valid {
-		pprc.ModuleID = &column.ModuleID.V
-	}
-	if column.Xxl.Valid {
-		pprc.Xxl = &column.Xxl.Int16
-	}
-	if column.Xl.Valid {
-		pprc.Xl = &column.Xl.Int16
-	}
-	if column.Lg.Valid {
-		pprc.Lg = &column.Lg.Int16
-	}
-	if column.Md.Valid {
-		pprc.Md = &column.Md.Int16
-	}
-	if column.Sm.Valid {
-		pprc.Sm = &column.Sm.Int16
-	}
-	if column.Xs.Valid {
-		pprc.Xs = &column.Xs.Int16
-	}
-	if column.Offset.Valid {
-		pprc.Offset = &column.Offset.Int16
-	}
-	if column.OffsetXxl.Valid {
-		pprc.OffsetXxl = &column.OffsetXxl.Int16
-	}
-	if column.OffsetXl.Valid {
-		pprc.OffsetXl = &column.OffsetXl.Int16
-	}
-	if column.OffsetLg.Valid {
-		pprc.OffsetLg = &column.OffsetLg.Int16
-	}
-	if column.OffsetMd.Valid {
-		pprc.OffsetMd = &column.OffsetMd.Int16
-	}
-	if column.OffsetSm.Valid {
-		pprc.OffsetSm = &column.OffsetSm.Int16
-	}
-	if column.Order.Valid {
-		pprc.Order = &column.Order.Int16
-	}
-	if column.OrderXxl.Valid {
-		pprc.OrderXxl = &column.OrderXxl.Int16
-	}
-	if column.OrderXl.Valid {
-		pprc.OrderXl = &column.OrderXl.Int16
-	}
-	if column.OrderLg.Valid {
-		pprc.OrderLg = &column.OrderLg.Int16
-	}
-	if column.OrderMd.Valid {
-		pprc.OrderMd = &column.OrderMd.Int16
-	}
-	if column.OrderSm.Valid {
-		pprc.OrderSm = &column.OrderSm.Int16
-	}
-	if column.AlignSelf.Valid {
-		pprc.AlignSelf = &column.AlignSelf.String
-	}
-	if column.Content.Valid {
-		pprc.Content = &column.Content.String
-	}
+	pprc.ModuleID = utils.PtrFromNull[uint](column.ModuleID)
+	pprc.Xxl = utils.PtrFromNullInt16(column.Xxl)
+	pprc.Xl = utils.PtrFromNullInt16(column.Xl)
+	pprc.Lg = utils.PtrFromNullInt16(column.Lg)
+	pprc.Md = utils.PtrFromNullInt16(column.Md)
+	pprc.Sm = utils.PtrFromNullInt16(column.Sm)
+	pprc.Xs = utils.PtrFromNullInt16(column.Xs)
+	pprc.Offset = utils.PtrFromNullInt16(column.Offset)
+	pprc.OffsetXxl = utils.PtrFromNullInt16(column.OffsetXxl)
+	pprc.OffsetXl = utils.PtrFromNullInt16(column.OffsetXl)
+	pprc.OffsetLg = utils.PtrFromNullInt16(column.OffsetLg)
+	pprc.OffsetMd = utils.PtrFromNullInt16(column.OffsetMd)
+	pprc.OffsetSm = utils.PtrFromNullInt16(column.OffsetSm)
+	pprc.Order = utils.PtrFromNullInt16(column.Order)
+	pprc.OrderXxl = utils.PtrFromNullInt16(column.OrderXxl)
+	pprc.OrderXl = utils.PtrFromNullInt16(column.OrderXl)
+	pprc.OrderLg = utils.PtrFromNullInt16(column.OrderLg)
+	pprc.OrderMd = utils.PtrFromNullInt16(column.OrderMd)
+	pprc.OrderSm = utils.PtrFromNullInt16(column.OrderSm)
+	pprc.AlignSelf = utils.PtrFromNullString(column.AlignSelf)
+	pprc.Content = utils.PtrFromNullString(column.Content)
 
 	pprc.Rows = make([]PagePartialRow, len(column.PagePartialRows))
 	for i := range column.PagePartialRows {

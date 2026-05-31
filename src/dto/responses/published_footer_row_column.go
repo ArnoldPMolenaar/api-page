@@ -2,6 +2,8 @@ package responses
 
 import (
 	"api-page/main/src/models"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PublishedFooterRowColumn struct {
@@ -37,66 +39,26 @@ func (pfrc *PublishedFooterRowColumn) SetFooterRowColumn(column *models.FooterRo
 	pfrc.ID = column.ID
 	pfrc.Position = column.Position
 	pfrc.Cols = column.Cols
-	if column.Xxl.Valid {
-		pfrc.Xxl = &column.Xxl.Int16
-	}
-	if column.Xl.Valid {
-		pfrc.Xl = &column.Xl.Int16
-	}
-	if column.Lg.Valid {
-		pfrc.Lg = &column.Lg.Int16
-	}
-	if column.Md.Valid {
-		pfrc.Md = &column.Md.Int16
-	}
-	if column.Sm.Valid {
-		pfrc.Sm = &column.Sm.Int16
-	}
-	if column.Xs.Valid {
-		pfrc.Xs = &column.Xs.Int16
-	}
-	if column.Offset.Valid {
-		pfrc.Offset = &column.Offset.Int16
-	}
-	if column.OffsetXxl.Valid {
-		pfrc.OffsetXxl = &column.OffsetXxl.Int16
-	}
-	if column.OffsetXl.Valid {
-		pfrc.OffsetXl = &column.OffsetXl.Int16
-	}
-	if column.OffsetLg.Valid {
-		pfrc.OffsetLg = &column.OffsetLg.Int16
-	}
-	if column.OffsetMd.Valid {
-		pfrc.OffsetMd = &column.OffsetMd.Int16
-	}
-	if column.OffsetSm.Valid {
-		pfrc.OffsetSm = &column.OffsetSm.Int16
-	}
-	if column.Order.Valid {
-		pfrc.Order = &column.Order.Int16
-	}
-	if column.OrderXxl.Valid {
-		pfrc.OrderXxl = &column.OrderXxl.Int16
-	}
-	if column.OrderXl.Valid {
-		pfrc.OrderXl = &column.OrderXl.Int16
-	}
-	if column.OrderLg.Valid {
-		pfrc.OrderLg = &column.OrderLg.Int16
-	}
-	if column.OrderMd.Valid {
-		pfrc.OrderMd = &column.OrderMd.Int16
-	}
-	if column.OrderSm.Valid {
-		pfrc.OrderSm = &column.OrderSm.Int16
-	}
-	if column.AlignSelf.Valid {
-		pfrc.AlignSelf = &column.AlignSelf.String
-	}
-	if column.Content.Valid {
-		pfrc.Content = &column.Content.String
-	}
+	pfrc.Xxl = utils.PtrFromNullInt16(column.Xxl)
+	pfrc.Xl = utils.PtrFromNullInt16(column.Xl)
+	pfrc.Lg = utils.PtrFromNullInt16(column.Lg)
+	pfrc.Md = utils.PtrFromNullInt16(column.Md)
+	pfrc.Sm = utils.PtrFromNullInt16(column.Sm)
+	pfrc.Xs = utils.PtrFromNullInt16(column.Xs)
+	pfrc.Offset = utils.PtrFromNullInt16(column.Offset)
+	pfrc.OffsetXxl = utils.PtrFromNullInt16(column.OffsetXxl)
+	pfrc.OffsetXl = utils.PtrFromNullInt16(column.OffsetXl)
+	pfrc.OffsetLg = utils.PtrFromNullInt16(column.OffsetLg)
+	pfrc.OffsetMd = utils.PtrFromNullInt16(column.OffsetMd)
+	pfrc.OffsetSm = utils.PtrFromNullInt16(column.OffsetSm)
+	pfrc.Order = utils.PtrFromNullInt16(column.Order)
+	pfrc.OrderXxl = utils.PtrFromNullInt16(column.OrderXxl)
+	pfrc.OrderXl = utils.PtrFromNullInt16(column.OrderXl)
+	pfrc.OrderLg = utils.PtrFromNullInt16(column.OrderLg)
+	pfrc.OrderMd = utils.PtrFromNullInt16(column.OrderMd)
+	pfrc.OrderSm = utils.PtrFromNullInt16(column.OrderSm)
+	pfrc.AlignSelf = utils.PtrFromNullString(column.AlignSelf)
+	pfrc.Content = utils.PtrFromNullString(column.Content)
 	if column.Module != nil {
 		var module PublishedModule
 		module.SetModule(column.Module)

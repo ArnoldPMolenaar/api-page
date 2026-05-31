@@ -2,8 +2,9 @@ package requests
 
 import (
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type UpdatePagePartialRowColumn struct {
@@ -37,16 +38,16 @@ type UpdatePagePartialRowColumn struct {
 	Rows      []UpdatePagePartialRow `json:"rows" validate:"dive"`
 }
 
-func (u *UpdatePagePartialRowColumn) SetPagePartialRowColumn(column models.PagePartialRowColumn, partialID uint) {
+func (u *UpdatePagePartialRowColumn) SetPagePartialRowColumn(column *models.PagePartialRowColumn, partialID uint) {
 	rows := make([]UpdatePagePartialRow, 0, len(column.PagePartialRows))
 	for i := range column.PagePartialRows {
 		row := UpdatePagePartialRow{}
-		row.SetPagePartialRow(column.PagePartialRows[i], partialID)
+		row.SetPagePartialRow(&column.PagePartialRows[i], partialID)
 		rows = append(rows, row)
 	}
 
-	u.ModuleID = utils.PtrFromNullUint(column.ModuleID)
-	u.Position = utils.PtrFromUint(column.Position)
+	u.ModuleID = utils.PtrFromNull[uint](column.ModuleID)
+	u.Position = &column.Position
 	u.Cols = column.Cols
 	u.Xxl = utils.PtrFromNullInt16(column.Xxl)
 	u.Xl = utils.PtrFromNullInt16(column.Xl)

@@ -8,11 +8,11 @@ import (
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // GetVersions func for getting all versions paginated.
-func GetVersions(c *fiber.Ctx) error {
+func GetVersions(c fiber.Ctx) error {
 	paginationModel, err := services.GetVersions(c)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
@@ -22,7 +22,7 @@ func GetVersions(c *fiber.Ctx) error {
 }
 
 // GetVersionLookup func for getting version lookup.
-func GetVersionLookup(c *fiber.Ctx) error {
+func GetVersionLookup(c fiber.Ctx) error {
 	appParam := c.Query("app")
 	if appParam == "" {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "App parameter is required.")
@@ -46,7 +46,7 @@ func GetVersionLookup(c *fiber.Ctx) error {
 }
 
 // GetVersionByID func for getting a version by ID.
-func GetVersionByID(c *fiber.Ctx) error {
+func GetVersionByID(c fiber.Ctx) error {
 	versionIDParam := c.Params("id")
 	versionID, err := util.StringToUint(versionIDParam)
 	if err != nil {
@@ -67,7 +67,7 @@ func GetVersionByID(c *fiber.Ctx) error {
 }
 
 // GetPublishedVersionByAppName func for getting the published version by app name.
-func GetPublishedVersionByAppName(c *fiber.Ctx) error {
+func GetPublishedVersionByAppName(c fiber.Ctx) error {
 	appName := c.Query("app")
 	if appName == "" {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "App name parameter is required.")
@@ -87,7 +87,7 @@ func GetPublishedVersionByAppName(c *fiber.Ctx) error {
 }
 
 // GetMenusByVersionID func for getting menus by version ID.
-func GetMenusByVersionID(c *fiber.Ctx) error {
+func GetMenusByVersionID(c fiber.Ctx) error {
 	versionIDParam := c.Params("id")
 	versionID, err := util.StringToUint(versionIDParam)
 	if err != nil {
@@ -117,7 +117,7 @@ func GetMenusByVersionID(c *fiber.Ctx) error {
 }
 
 // IsVersionNameAvailable method to check if version is available.
-func IsVersionNameAvailable(c *fiber.Ctx) error {
+func IsVersionNameAvailable(c fiber.Ctx) error {
 	app := c.Query("app")
 	name := c.Query("name")
 
@@ -142,12 +142,12 @@ func IsVersionNameAvailable(c *fiber.Ctx) error {
 }
 
 // CreateVersion func for creating a version.
-func CreateVersion(c *fiber.Ctx) error {
+func CreateVersion(c fiber.Ctx) error {
 	// Create a new version struct for the request.
 	versionRequest := &requests.CreateVersion{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(versionRequest); err != nil {
+	if err := c.Bind().Body(versionRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -186,7 +186,7 @@ func CreateVersion(c *fiber.Ctx) error {
 }
 
 // UpdateVersion func for updating a version.
-func UpdateVersion(c *fiber.Ctx) error {
+func UpdateVersion(c fiber.Ctx) error {
 	// Get the versionID parameter from the URL.
 	versionIDParam := c.Params("id")
 	versionID, err := util.StringToUint(versionIDParam)
@@ -198,7 +198,7 @@ func UpdateVersion(c *fiber.Ctx) error {
 	versionRequest := &requests.UpdateVersion{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(versionRequest); err != nil {
+	if err := c.Bind().Body(versionRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -235,7 +235,7 @@ func UpdateVersion(c *fiber.Ctx) error {
 	}
 
 	// Update version.
-	updatedVersion, err := services.UpdateVersion(*oldVersion, versionRequest)
+	updatedVersion, err := services.UpdateVersion(oldVersion, versionRequest)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
@@ -248,7 +248,7 @@ func UpdateVersion(c *fiber.Ctx) error {
 }
 
 // DuplicateVersion func for duplicating an existing version model with its data.
-func DuplicateVersion(c *fiber.Ctx) error {
+func DuplicateVersion(c fiber.Ctx) error {
 	// Get the versionID parameter from the URL.
 	versionIDParam := c.Params("id")
 	versionID, err := util.StringToUint(versionIDParam)
@@ -260,7 +260,7 @@ func DuplicateVersion(c *fiber.Ctx) error {
 	versionRequest := &requests.CreateDuplicateVersion{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(versionRequest); err != nil {
+	if err := c.Bind().Body(versionRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -307,7 +307,7 @@ func DuplicateVersion(c *fiber.Ctx) error {
 }
 
 // PublishVersion func for publishing a version.
-func PublishVersion(c *fiber.Ctx) error {
+func PublishVersion(c fiber.Ctx) error {
 	// Get the versionID parameter from the URL.
 	versionIDParam := c.Params("id")
 	versionID, err := util.StringToUint(versionIDParam)
@@ -342,7 +342,7 @@ func PublishVersion(c *fiber.Ctx) error {
 }
 
 // DeleteVersion func for deleting a version.
-func DeleteVersion(c *fiber.Ctx) error {
+func DeleteVersion(c fiber.Ctx) error {
 	// Get the ID from the URL.
 	id, err := util.StringToUint(c.Params("id"))
 	if err != nil {
@@ -371,7 +371,7 @@ func DeleteVersion(c *fiber.Ctx) error {
 }
 
 // RestoreVersion func for restoring a deleted version.
-func RestoreVersion(c *fiber.Ctx) error {
+func RestoreVersion(c fiber.Ctx) error {
 	// Get the ID from the URL.
 	id, err := util.StringToUint(c.Params("id"))
 	if err != nil {

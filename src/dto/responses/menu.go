@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type Menu struct {
@@ -22,13 +24,10 @@ func (m *Menu) SetMenu(menu *models.Menu) {
 	m.Name = menu.Name
 	m.CreatedAt = menu.CreatedAt
 	m.UpdatedAt = menu.UpdatedAt
-
-	if menu.Depth.Valid {
-		m.Depth = &menu.Depth.V
-	}
+	m.Depth = utils.PtrFromNull(menu.Depth)
 
 	m.Items = make([]MenuItem, 0)
-	for i, _ := range menu.MenuItemRelations {
+	for i := range menu.MenuItemRelations {
 		relation := &menu.MenuItemRelations[i]
 
 		if !relation.MenuItemParentID.Valid {
@@ -49,7 +48,7 @@ func (m *Menu) SetMenu(menu *models.Menu) {
 
 // findParentItem recursively finds a parent MenuItem by ID.
 func (m *Menu) findParentItem(parentID uint, items *[]MenuItem) *MenuItem {
-	for i, _ := range *items {
+	for i := range *items {
 		item := (*items)[i]
 		if item.ID == parentID {
 			return &(*items)[i]

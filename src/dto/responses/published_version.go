@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PublishedVersion struct {
@@ -17,10 +19,5 @@ func (v *PublishedVersion) SetVersion(version *models.Version) {
 	v.ID = version.ID
 	v.PublishID = version.PublishID.String()
 	v.Name = version.Name
-	v.PublishedAt = func() *time.Time {
-		if version.PublishedAt.Valid {
-			return &version.PublishedAt.Time
-		}
-		return nil
-	}()
+	v.PublishedAt = utils.PtrFromNullTime(version.PublishedAt)
 }

@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PagePartialRow struct {
@@ -44,63 +46,25 @@ func (ppr *PagePartialRow) SetPagePartialRow(row *models.PagePartialRow) {
 	ppr.Dense = row.Dense
 	ppr.CreatedAt = row.CreatedAt
 	ppr.UpdatedAt = row.UpdatedAt
-	if row.Hashtag.Valid {
-		ppr.Hashtag = &row.Hashtag.String
-	}
-	if row.Align.Valid {
-		ppr.Align = &row.Align.String
-	}
-	if row.AlignXxl.Valid {
-		ppr.AlignXxl = &row.AlignXxl.String
-	}
-	if row.AlignXl.Valid {
-		ppr.AlignXl = &row.AlignXl.String
-	}
-	if row.AlignLg.Valid {
-		ppr.AlignLg = &row.AlignLg.String
-	}
-	if row.AlignMd.Valid {
-		ppr.AlignMd = &row.AlignMd.String
-	}
-	if row.AlignSm.Valid {
-		ppr.AlignSm = &row.AlignSm.String
-	}
-	if row.AlignContent.Valid {
-		ppr.AlignContent = &row.AlignContent.String
-	}
-	if row.AlignContentXxl.Valid {
-		ppr.AlignContentXxl = &row.AlignContentXxl.String
-	}
-	if row.AlignContentXl.Valid {
-		ppr.AlignContentXl = &row.AlignContentXl.String
-	}
-	if row.AlignContentLg.Valid {
-		ppr.AlignContentLg = &row.AlignContentLg.String
-	}
-	if row.AlignContentMd.Valid {
-		ppr.AlignContentMd = &row.AlignContentMd.String
-	}
-	if row.AlignContentSm.Valid {
-		ppr.AlignContentSm = &row.AlignContentSm.String
-	}
-	if row.Justify.Valid {
-		ppr.Justify = &row.Justify.String
-	}
-	if row.JustifyXxl.Valid {
-		ppr.JustifyXxl = &row.JustifyXxl.String
-	}
-	if row.JustifyXl.Valid {
-		ppr.JustifyXl = &row.JustifyXl.String
-	}
-	if row.JustifyLg.Valid {
-		ppr.JustifyLg = &row.JustifyLg.String
-	}
-	if row.JustifyMd.Valid {
-		ppr.JustifyMd = &row.JustifyMd.String
-	}
-	if row.JustifySm.Valid {
-		ppr.JustifySm = &row.JustifySm.String
-	}
+	ppr.Hashtag = utils.PtrFromNullString(row.Hashtag)
+	ppr.Align = utils.PtrFromNullString(row.Align)
+	ppr.AlignXxl = utils.PtrFromNullString(row.AlignXxl)
+	ppr.AlignXl = utils.PtrFromNullString(row.AlignXl)
+	ppr.AlignLg = utils.PtrFromNullString(row.AlignLg)
+	ppr.AlignMd = utils.PtrFromNullString(row.AlignMd)
+	ppr.AlignSm = utils.PtrFromNullString(row.AlignSm)
+	ppr.AlignContent = utils.PtrFromNullString(row.AlignContent)
+	ppr.AlignContentXxl = utils.PtrFromNullString(row.AlignContentXxl)
+	ppr.AlignContentXl = utils.PtrFromNullString(row.AlignContentXl)
+	ppr.AlignContentLg = utils.PtrFromNullString(row.AlignContentLg)
+	ppr.AlignContentMd = utils.PtrFromNullString(row.AlignContentMd)
+	ppr.AlignContentSm = utils.PtrFromNullString(row.AlignContentSm)
+	ppr.Justify = utils.PtrFromNullString(row.Justify)
+	ppr.JustifyXxl = utils.PtrFromNullString(row.JustifyXxl)
+	ppr.JustifyXl = utils.PtrFromNullString(row.JustifyXl)
+	ppr.JustifyLg = utils.PtrFromNullString(row.JustifyLg)
+	ppr.JustifyMd = utils.PtrFromNullString(row.JustifyMd)
+	ppr.JustifySm = utils.PtrFromNullString(row.JustifySm)
 
 	ppr.Columns = make([]PagePartialRowColumn, len(row.Columns))
 	for i := range row.Columns {

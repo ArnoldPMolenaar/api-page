@@ -16,7 +16,7 @@ func (pm *PublishedMenu) SetMenu(menu *models.Menu) {
 	pm.Name = menu.Name
 
 	pm.Items = make([]PublishedMenuItem, 0)
-	for i, _ := range menu.MenuItemRelations {
+	for i := range menu.MenuItemRelations {
 		relation := &menu.MenuItemRelations[i]
 
 		if !relation.MenuItemParentID.Valid {
@@ -37,7 +37,7 @@ func (pm *PublishedMenu) SetMenu(menu *models.Menu) {
 
 // findParentItem recursively finds a parent MenuItem by ID.
 func (pm *PublishedMenu) findParentItem(parentID uint, items *[]PublishedMenuItem) *PublishedMenuItem {
-	for i, _ := range *items {
+	for i := range *items {
 		item := (*items)[i]
 		if item.ID == parentID {
 			return &(*items)[i]

@@ -2,8 +2,9 @@ package requests
 
 import (
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type CreateMenuItem struct {
@@ -16,15 +17,15 @@ type CreateMenuItem struct {
 	Items     []CreateMenuItem   `json:"items" validate:"dive"`
 }
 
-func (c *CreateMenuItem) SetMenuItemRelation(relation models.MenuItemRelation) {
+func (c *CreateMenuItem) SetMenuItemRelation(relation *models.MenuItemRelation) {
 	indexing := make([]MenuItemIndexing, 0, len(relation.MenuItemChild.Indexing))
 	for i := range relation.MenuItemChild.Indexing {
 		menuItemIndexing := MenuItemIndexing{}
-		menuItemIndexing.SetMenuItemIndexing(relation.MenuItemChild.Indexing[i])
+		menuItemIndexing.SetMenuItemIndexing(&relation.MenuItemChild.Indexing[i])
 		indexing = append(indexing, menuItemIndexing)
 	}
 
-	c.Position = utils.PtrFromUint(relation.Position)
+	c.Position = &relation.Position
 	c.Name = relation.MenuItemChild.Name
 	c.Icon = utils.PtrFromNullString(relation.MenuItemChild.Icon)
 	c.EnabledAt = utils.PtrFromNullTime(relation.MenuItemChild.EnabledAt)

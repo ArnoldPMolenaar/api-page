@@ -1,6 +1,10 @@
 package responses
 
-import "api-page/main/src/models"
+import (
+	"api-page/main/src/models"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
+)
 
 type MenuItemIndexing struct {
 	Option string  `json:"option"`
@@ -10,8 +14,5 @@ type MenuItemIndexing struct {
 // SetMenuIndexing sets the MenuItemIndexing response from the models.MenuItemIndexing model.
 func (mii *MenuItemIndexing) SetMenuIndexing(indexing *models.MenuItemIndexing) {
 	mii.Option = indexing.Option.String()
-
-	if indexing.Value.Valid {
-		mii.Value = &indexing.Value.String
-	}
+	mii.Value = utils.PtrFromNullString(indexing.Value)
 }

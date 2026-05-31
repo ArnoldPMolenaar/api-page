@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type FooterRow struct {
@@ -46,63 +48,25 @@ func (fr *FooterRow) SetFooterRow(row *models.FooterRow) {
 	fr.Dense = row.Dense
 	fr.CreatedAt = row.CreatedAt
 	fr.UpdatedAt = row.UpdatedAt
-	if row.Hashtag.Valid {
-		fr.Hashtag = &row.Hashtag.String
-	}
-	if row.Align.Valid {
-		fr.Align = &row.Align.String
-	}
-	if row.AlignXxl.Valid {
-		fr.AlignXxl = &row.AlignXxl.String
-	}
-	if row.AlignXl.Valid {
-		fr.AlignXl = &row.AlignXl.String
-	}
-	if row.AlignLg.Valid {
-		fr.AlignLg = &row.AlignLg.String
-	}
-	if row.AlignMd.Valid {
-		fr.AlignMd = &row.AlignMd.String
-	}
-	if row.AlignSm.Valid {
-		fr.AlignSm = &row.AlignSm.String
-	}
-	if row.AlignContent.Valid {
-		fr.AlignContent = &row.AlignContent.String
-	}
-	if row.AlignContentXxl.Valid {
-		fr.AlignContentXxl = &row.AlignContentXxl.String
-	}
-	if row.AlignContentXl.Valid {
-		fr.AlignContentXl = &row.AlignContentXl.String
-	}
-	if row.AlignContentLg.Valid {
-		fr.AlignContentLg = &row.AlignContentLg.String
-	}
-	if row.AlignContentMd.Valid {
-		fr.AlignContentMd = &row.AlignContentMd.String
-	}
-	if row.AlignContentSm.Valid {
-		fr.AlignContentSm = &row.AlignContentSm.String
-	}
-	if row.Justify.Valid {
-		fr.Justify = &row.Justify.String
-	}
-	if row.JustifyXxl.Valid {
-		fr.JustifyXxl = &row.JustifyXxl.String
-	}
-	if row.JustifyXl.Valid {
-		fr.JustifyXl = &row.JustifyXl.String
-	}
-	if row.JustifyLg.Valid {
-		fr.JustifyLg = &row.JustifyLg.String
-	}
-	if row.JustifyMd.Valid {
-		fr.JustifyMd = &row.JustifyMd.String
-	}
-	if row.JustifySm.Valid {
-		fr.JustifySm = &row.JustifySm.String
-	}
+	fr.Hashtag = utils.PtrFromNullString(row.Hashtag)
+	fr.Align = utils.PtrFromNullString(row.Align)
+	fr.AlignXxl = utils.PtrFromNullString(row.AlignXxl)
+	fr.AlignXl = utils.PtrFromNullString(row.AlignXl)
+	fr.AlignLg = utils.PtrFromNullString(row.AlignLg)
+	fr.AlignMd = utils.PtrFromNullString(row.AlignMd)
+	fr.AlignSm = utils.PtrFromNullString(row.AlignSm)
+	fr.AlignContent = utils.PtrFromNullString(row.AlignContent)
+	fr.AlignContentXxl = utils.PtrFromNullString(row.AlignContentXxl)
+	fr.AlignContentXl = utils.PtrFromNullString(row.AlignContentXl)
+	fr.AlignContentLg = utils.PtrFromNullString(row.AlignContentLg)
+	fr.AlignContentMd = utils.PtrFromNullString(row.AlignContentMd)
+	fr.AlignContentSm = utils.PtrFromNullString(row.AlignContentSm)
+	fr.Justify = utils.PtrFromNullString(row.Justify)
+	fr.JustifyXxl = utils.PtrFromNullString(row.JustifyXxl)
+	fr.JustifyXl = utils.PtrFromNullString(row.JustifyXl)
+	fr.JustifyLg = utils.PtrFromNullString(row.JustifyLg)
+	fr.JustifyMd = utils.PtrFromNullString(row.JustifyMd)
+	fr.JustifySm = utils.PtrFromNullString(row.JustifySm)
 
 	fr.Columns = make([]FooterRowColumn, len(row.Columns))
 	for i := range row.Columns {

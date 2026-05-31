@@ -2,7 +2,8 @@ package responses
 
 import (
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PublishedMenuItem struct {
@@ -33,19 +34,11 @@ func (pmi *PublishedMenuItem) SetMenuItem(menuItem *models.MenuItem, position ui
 		pmi.URLName = utils.URLEncode(page.Name)
 		pmi.UrlEnabled = page.UrlEnabled
 		pmi.NewTabEnabled = page.NewTabEnabled
-
-		if page.Hashtag.Valid {
-			pmi.Hashtag = &page.Hashtag.String
-		}
-
-		if page.Url.Valid {
-			pmi.Url = &page.Url.String
-		}
+		pmi.Hashtag = utils.PtrFromNullString(page.Hashtag)
+		pmi.Url = utils.PtrFromNullString(page.Url)
 	}
 
-	if menuItem.Icon.Valid {
-		pmi.Icon = &menuItem.Icon.String
-	}
+	pmi.Icon = utils.PtrFromNullString(menuItem.Icon)
 
 	pmi.Items = make([]PublishedMenuItem, 0)
 }

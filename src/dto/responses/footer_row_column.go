@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type FooterRowColumn struct {
@@ -44,69 +46,27 @@ func (frc *FooterRowColumn) SetFooterRowColumn(column *models.FooterRowColumn) {
 	frc.Cols = column.Cols
 	frc.CreatedAt = column.CreatedAt
 	frc.UpdatedAt = column.UpdatedAt
-	if column.ModuleID.Valid {
-		frc.ModuleID = &column.ModuleID.V
-	}
-	if column.Xxl.Valid {
-		frc.Xxl = &column.Xxl.Int16
-	}
-	if column.Xl.Valid {
-		frc.Xl = &column.Xl.Int16
-	}
-	if column.Lg.Valid {
-		frc.Lg = &column.Lg.Int16
-	}
-	if column.Md.Valid {
-		frc.Md = &column.Md.Int16
-	}
-	if column.Sm.Valid {
-		frc.Sm = &column.Sm.Int16
-	}
-	if column.Xs.Valid {
-		frc.Xs = &column.Xs.Int16
-	}
-	if column.Offset.Valid {
-		frc.Offset = &column.Offset.Int16
-	}
-	if column.OffsetXxl.Valid {
-		frc.OffsetXxl = &column.OffsetXxl.Int16
-	}
-	if column.OffsetXl.Valid {
-		frc.OffsetXl = &column.OffsetXl.Int16
-	}
-	if column.OffsetLg.Valid {
-		frc.OffsetLg = &column.OffsetLg.Int16
-	}
-	if column.OffsetMd.Valid {
-		frc.OffsetMd = &column.OffsetMd.Int16
-	}
-	if column.OffsetSm.Valid {
-		frc.OffsetSm = &column.OffsetSm.Int16
-	}
-	if column.Order.Valid {
-		frc.Order = &column.Order.Int16
-	}
-	if column.OrderXxl.Valid {
-		frc.OrderXxl = &column.OrderXxl.Int16
-	}
-	if column.OrderXl.Valid {
-		frc.OrderXl = &column.OrderXl.Int16
-	}
-	if column.OrderLg.Valid {
-		frc.OrderLg = &column.OrderLg.Int16
-	}
-	if column.OrderMd.Valid {
-		frc.OrderMd = &column.OrderMd.Int16
-	}
-	if column.OrderSm.Valid {
-		frc.OrderSm = &column.OrderSm.Int16
-	}
-	if column.AlignSelf.Valid {
-		frc.AlignSelf = &column.AlignSelf.String
-	}
-	if column.Content.Valid {
-		frc.Content = &column.Content.String
-	}
+	frc.ModuleID = utils.PtrFromNull[uint](column.ModuleID)
+	frc.Xxl = utils.PtrFromNullInt16(column.Xxl)
+	frc.Xl = utils.PtrFromNullInt16(column.Xl)
+	frc.Lg = utils.PtrFromNullInt16(column.Lg)
+	frc.Md = utils.PtrFromNullInt16(column.Md)
+	frc.Sm = utils.PtrFromNullInt16(column.Sm)
+	frc.Xs = utils.PtrFromNullInt16(column.Xs)
+	frc.Offset = utils.PtrFromNullInt16(column.Offset)
+	frc.OffsetXxl = utils.PtrFromNullInt16(column.OffsetXxl)
+	frc.OffsetXl = utils.PtrFromNullInt16(column.OffsetXl)
+	frc.OffsetLg = utils.PtrFromNullInt16(column.OffsetLg)
+	frc.OffsetMd = utils.PtrFromNullInt16(column.OffsetMd)
+	frc.OffsetSm = utils.PtrFromNullInt16(column.OffsetSm)
+	frc.Order = utils.PtrFromNullInt16(column.Order)
+	frc.OrderXxl = utils.PtrFromNullInt16(column.OrderXxl)
+	frc.OrderXl = utils.PtrFromNullInt16(column.OrderXl)
+	frc.OrderLg = utils.PtrFromNullInt16(column.OrderLg)
+	frc.OrderMd = utils.PtrFromNullInt16(column.OrderMd)
+	frc.OrderSm = utils.PtrFromNullInt16(column.OrderSm)
+	frc.AlignSelf = utils.PtrFromNullString(column.AlignSelf)
+	frc.Content = utils.PtrFromNullString(column.Content)
 
 	frc.Rows = make([]FooterRow, len(column.FooterRows))
 	for i := range column.FooterRows {

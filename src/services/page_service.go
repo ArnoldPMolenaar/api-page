@@ -6,13 +6,13 @@ import (
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/enums"
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 	"github.com/valkey-io/valkey-go"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -148,7 +148,7 @@ func GetPublishedPage(menuItemID uint, locale string) (*models.Page, error) {
 			return nil, result.Error
 		}
 
-		if page.EnabledAt.Valid == false {
+		if !page.EnabledAt.Valid {
 			// If the page is not enabled, we should not retrieve it.
 			return &models.Page{}, nil
 		}
@@ -500,7 +500,7 @@ func syncPagePartialColumns(tx *gorm.DB, partialID, rowID uint, existingColumns 
 
 		col.PagePartialRowID = rowID
 		col.Position = utils.UintOrZero(dtoCol.Position)
-		col.ModuleID = utils.NewNullUint(dtoCol.ModuleID)
+		col.ModuleID = utils.NewNull[uint](dtoCol.ModuleID)
 		col.Cols = dtoCol.Cols
 		col.Xxl = utils.NewNullInt16(dtoCol.Xxl)
 		col.Xl = utils.NewNullInt16(dtoCol.Xl)
@@ -674,7 +674,7 @@ func getPageFromCache(menuItemID uint, locale string) (*models.Page, error) {
 	}
 
 	var page models.Page
-	if err = json.Unmarshal([]byte(value), &page); err != nil {
+	if err := json.Unmarshal([]byte(value), &page); err != nil {
 		return nil, err
 	}
 

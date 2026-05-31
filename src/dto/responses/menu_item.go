@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type MenuItem struct {
@@ -24,22 +26,15 @@ func (mi *MenuItem) SetMenuItem(menuItem *models.MenuItem, position uint) {
 	mi.VersionID = menuItem.VersionID
 	mi.Position = position
 	mi.Name = menuItem.Name
-
-	if menuItem.Icon.Valid {
-		mi.Icon = &menuItem.Icon.String
-	}
-
-	if menuItem.EnabledAt.Valid {
-		mi.EnabledAt = &menuItem.EnabledAt.Time
-	}
-
+	mi.Icon = utils.PtrFromNullString(menuItem.Icon)
+	mi.EnabledAt = utils.PtrFromNullTime(menuItem.EnabledAt)
 	mi.CreatedAt = menuItem.CreatedAt
 	mi.UpdatedAt = menuItem.UpdatedAt
 
 	mi.Indexing = make([]MenuItemIndexing, len(menuItem.Indexing))
-	for i, indexing := range menuItem.Indexing {
+	for i := range menuItem.Indexing {
 		mi.Indexing[i] = MenuItemIndexing{}
-		mi.Indexing[i].SetMenuIndexing(&indexing)
+		mi.Indexing[i].SetMenuIndexing(&menuItem.Indexing[i])
 	}
 
 	mi.Items = make([]MenuItem, 0)

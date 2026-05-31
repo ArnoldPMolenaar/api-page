@@ -2,7 +2,8 @@ package requests
 
 import (
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type MenuItemIndexing struct {
@@ -10,7 +11,7 @@ type MenuItemIndexing struct {
 	Value  *string `json:"value"`
 }
 
-func (m *MenuItemIndexing) SetMenuItemIndexing(indexing models.MenuItemIndexing) {
+func (m *MenuItemIndexing) SetMenuItemIndexing(indexing *models.MenuItemIndexing) {
 	m.Option = indexing.Option.String()
 	m.Value = utils.PtrFromNullString(indexing.Value)
 }

@@ -10,11 +10,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ArnoldPMolenaar/api-utils/pagination"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/valkey-io/valkey-go"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -56,7 +57,7 @@ func IsModuleDeleted(moduleID uint) (bool, error) {
 }
 
 // GetModules method to get paginated modules.
-func GetModules(c *fiber.Ctx) (*pagination.Model, error) {
+func GetModules(c fiber.Ctx) (*pagination.Model, error) {
 	modules := make([]models.Module, 0)
 	values := c.Request().URI().QueryArgs()
 	allowedColumns := map[string]bool{
@@ -70,11 +71,11 @@ func GetModules(c *fiber.Ctx) (*pagination.Model, error) {
 
 	queryFunc := pagination.Query(values, allowedColumns)
 	sortFunc := pagination.Sort(values, allowedColumns)
-	page := c.QueryInt("page", 1)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
 	if page < 1 {
 		page = 1
 	}
-	limit := c.QueryInt("limit", 10)
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 {
 		limit = 10
 	}
@@ -214,18 +215,22 @@ func CreateModule(module *requests.CreateModule) (*models.Module, error) {
 }
 
 // UpdateModule method to update a module.
-func UpdateModule(oldModule models.Module, module *requests.UpdateModule) (*models.Module, error) {
+func UpdateModule(oldModule *models.Module, module *requests.UpdateModule) (*models.Module, error) {
+	if oldModule == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	oldModule.Name = module.Name
 	oldModule.Type = module.Type
 	oldModule.Settings = datatypes.JSON(module.Settings)
 
-	if result := database.Pg.Save(&oldModule); result.Error != nil {
+	if result := database.Pg.Save(oldModule); result.Error != nil {
 		return nil, result.Error
 	}
 
 	_ = deleteModulesLookupFromCache(oldModule.AppName)
 
-	return &oldModule, nil
+	return oldModule, nil
 }
 
 // DeleteModule method to delete a module.
@@ -291,7 +296,7 @@ func getModuleTypesLookupFromCache(appName *string) (*[]models.ModuleType, error
 	}
 
 	var moduleTypes []models.ModuleType
-	if err = json.Unmarshal([]byte(value), &moduleTypes); err != nil {
+	if err := json.Unmarshal([]byte(value), &moduleTypes); err != nil {
 		return nil, err
 	}
 
@@ -362,7 +367,7 @@ func getModulesLookupFromCache(appName string) (*[]models.Module, error) {
 	}
 
 	var modules []models.Module
-	if err = json.Unmarshal([]byte(value), &modules); err != nil {
+	if err := json.Unmarshal([]byte(value), &modules); err != nil {
 		return nil, err
 	}
 

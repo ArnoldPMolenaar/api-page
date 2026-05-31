@@ -9,11 +9,11 @@ import (
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // GetModules func for getting all modules paginated.
-func GetModules(c *fiber.Ctx) error {
+func GetModules(c fiber.Ctx) error {
 	paginationModel, err := services.GetModules(c)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
@@ -23,7 +23,7 @@ func GetModules(c *fiber.Ctx) error {
 }
 
 // GetModuleTypeLookup func for getting module type lookup.
-func GetModuleTypeLookup(c *fiber.Ctx) error {
+func GetModuleTypeLookup(c fiber.Ctx) error {
 	appParam := c.Query("app")
 	var appName *string
 	if appParam != "" {
@@ -47,7 +47,7 @@ func GetModuleTypeLookup(c *fiber.Ctx) error {
 }
 
 // GetModuleLookup func for getting module lookup.
-func GetModuleLookup(c *fiber.Ctx) error {
+func GetModuleLookup(c fiber.Ctx) error {
 	appParam := c.Query("app")
 	if appParam == "" {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "App parameter is required.")
@@ -71,7 +71,7 @@ func GetModuleLookup(c *fiber.Ctx) error {
 }
 
 // GetModuleByID func for getting a module by ID.
-func GetModuleByID(c *fiber.Ctx) error {
+func GetModuleByID(c fiber.Ctx) error {
 	moduleIDParam := c.Params("id")
 	moduleID, err := util.StringToUint(moduleIDParam)
 	if err != nil {
@@ -92,7 +92,7 @@ func GetModuleByID(c *fiber.Ctx) error {
 }
 
 // IsModuleNameAvailable method to check if module is available.
-func IsModuleNameAvailable(c *fiber.Ctx) error {
+func IsModuleNameAvailable(c fiber.Ctx) error {
 	app := c.Query("app")
 	name := c.Query("name")
 
@@ -117,12 +117,12 @@ func IsModuleNameAvailable(c *fiber.Ctx) error {
 }
 
 // CreateModule func for creating a module.
-func CreateModule(c *fiber.Ctx) error {
+func CreateModule(c fiber.Ctx) error {
 	// Create a new module struct for the request.
 	moduleRequest := &requests.CreateModule{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(moduleRequest); err != nil {
+	if err := c.Bind().Body(moduleRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -167,7 +167,7 @@ func CreateModule(c *fiber.Ctx) error {
 }
 
 // UpdateModule func for updating a module.
-func UpdateModule(c *fiber.Ctx) error {
+func UpdateModule(c fiber.Ctx) error {
 	// Get the moduleID parameter from the URL.
 	moduleIDParam := c.Params("id")
 	moduleID, err := util.StringToUint(moduleIDParam)
@@ -179,7 +179,7 @@ func UpdateModule(c *fiber.Ctx) error {
 	moduleRequest := &requests.UpdateModule{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(moduleRequest); err != nil {
+	if err := c.Bind().Body(moduleRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -218,7 +218,7 @@ func UpdateModule(c *fiber.Ctx) error {
 	}
 
 	// Update module.
-	updatedModule, err := services.UpdateModule(*oldModule, moduleRequest)
+	updatedModule, err := services.UpdateModule(oldModule, moduleRequest)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
@@ -231,7 +231,7 @@ func UpdateModule(c *fiber.Ctx) error {
 }
 
 // DeleteModule func for deleting a module.
-func DeleteModule(c *fiber.Ctx) error {
+func DeleteModule(c fiber.Ctx) error {
 	// Get the ID from the URL.
 	id, err := util.StringToUint(c.Params("id"))
 	if err != nil {
@@ -255,7 +255,7 @@ func DeleteModule(c *fiber.Ctx) error {
 }
 
 // RestoreModule func for restoring a deleted module.
-func RestoreModule(c *fiber.Ctx) error {
+func RestoreModule(c fiber.Ctx) error {
 	// Get the ID from the URL.
 	id, err := util.StringToUint(c.Params("id"))
 	if err != nil {

@@ -2,8 +2,9 @@ package requests
 
 import (
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type UpdateFooterRowColumn struct {
@@ -37,16 +38,16 @@ type UpdateFooterRowColumn struct {
 	Rows      []UpdateFooterRow `json:"rows" validate:"dive"`
 }
 
-func (u *UpdateFooterRowColumn) SetFooterRowColumn(column models.FooterRowColumn, versionID uint, locale string) {
+func (u *UpdateFooterRowColumn) SetFooterRowColumn(column *models.FooterRowColumn, versionID uint, locale string) {
 	rows := make([]UpdateFooterRow, 0, len(column.FooterRows))
 	for i := range column.FooterRows {
 		row := UpdateFooterRow{}
-		row.SetFooterRow(column.FooterRows[i], versionID, locale)
+		row.SetFooterRow(&column.FooterRows[i], versionID, locale)
 		rows = append(rows, row)
 	}
 
-	u.ModuleID = utils.PtrFromNullUint(column.ModuleID)
-	u.Position = utils.PtrFromUint(column.Position)
+	u.ModuleID = utils.PtrFromNull[uint](column.ModuleID)
+	u.Position = &column.Position
 	u.Cols = column.Cols
 	u.Xxl = utils.PtrFromNullInt16(column.Xxl)
 	u.Xl = utils.PtrFromNullInt16(column.Xl)

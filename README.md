@@ -1,7 +1,7 @@
 # Page API
 
-[![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)](https://go.dev/)
-[![Fiber](https://img.shields.io/badge/Fiber-v2-00ACD7?logo=fiber)](https://github.com/gofiber/fiber)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](https://go.dev/)
+[![Fiber](https://img.shields.io/badge/Fiber-v3-00ACD7?logo=fiber)](https://github.com/gofiber/fiber)
 [![GORM](https://img.shields.io/badge/GORM-ORM-7E57C2?logo=sqlite)](https://gorm.io/)
 
 ## 📚 Overview
@@ -72,9 +72,13 @@ For consuming published content.
   - Query: `app=<appName>`
   - Returns the published Version of an App.
 
-- GET `/v1/versions/:id/menus`
+- GET `/v1/versions/:id/menus/published`
   - Query: `locale=<locale>`
   - Returns published Menus for a published Version. Requires the Version to be published.
+
+- GET `/v1/versions/:id/footer/published`
+  - Query: `locale=<locale>`
+  - Returns published Footer for a Version and locale.
 
 - GET `/v1/pages/:menuItemId/:locale/published`
   - Returns the published Page for a Menu Item in a given locale.
@@ -85,6 +89,10 @@ All endpoints require machine authentication via `api-utils` middleware.
 - Apps
   - POST `/v1/apps/`
     - Create a new App.
+  - PATCH `/v1/apps/modules/types`
+    - Set/sync allowed Module Types for an App.
+  - PATCH `/v1/apps/plugins/types`
+    - Set/sync allowed Plugin Types for an App.
 
 - Versions
   - GET `/v1/versions/`
@@ -99,13 +107,19 @@ All endpoints require machine authentication via `api-utils` middleware.
     - Checks if a Version name is available.
   - GET `/v1/versions/:id`
     - Get a Version by ID.
-  - PUT `/v1/versions/:id`
+  - PATCH `/v1/versions/:id`
     - Update a Version.
+  - PUT `/v1/versions/:id/duplicate`
+    - Duplicate a Version and related data.
+  - GET `/v1/versions/:id/footer`
+    - Get Footer rows for a Version and locale.
+  - PATCH `/v1/versions/:id/footer`
+    - Update Footer rows/columns for a Version and locale.
   - DELETE `/v1/versions/:id`
     - Soft-delete a Version.
-  - PUT `/v1/versions/:id/publish`
+  - PATCH `/v1/versions/:id/publish`
     - Publish a Version.
-  - PUT `/v1/versions/:id/restore`
+  - POST `/v1/versions/:id/restore`
     - Restore a previously deleted Version.
 
 - Menus
@@ -119,29 +133,35 @@ All endpoints require machine authentication via `api-utils` middleware.
     - Checks if a Menu name is available.
   - GET `/v1/menus/:id`
     - Get a Menu by ID.
-  - PUT `/v1/menus/:id`
+  - PATCH `/v1/menus/:id`
     - Update a Menu.
   - DELETE `/v1/menus/:id`
     - Soft-delete a Menu.
-  - PUT `/v1/menus/:id/restore`
+  - POST `/v1/menus/:id/restore`
     - Restore a previously deleted Menu.
+
+- Menu items
+  - GET `/v1/menu-items/:id/app/available`
+    - Checks if a Menu Item belongs to a Version for a given App.
 
 - Pages
   - GET `/v1/pages/:menuItemId/:locale`
     - Get or create the draft Page for a Menu Item in a given locale.
-  - PUT `/v1/pages/:menuItemId/:locale`
+  - PATCH `/v1/pages/:menuItemId/:locale`
     - Update a Page.
   - DELETE `/v1/pages/:menuItemId/:locale`
     - Soft-delete a Page.
-  - PUT `/v1/pages/:menuItemId/:locale/restore`
+  - POST `/v1/pages/:menuItemId/:locale/restore`
     - Restore a previously deleted Page.
   - POST `/v1/pages/:menuItemId/:locale/partials`
     - Create a Page Partial.
-  - PUT `/v1/pages/:menuItemId/:locale/partials/:id`
+  - GET `/v1/pages/:menuItemId/:locale/partials/:id`
+    - Get a Page Partial by ID.
+  - PATCH `/v1/pages/:menuItemId/:locale/partials/:id`
     - Update a Page Partial.
   - DELETE `/v1/pages/:menuItemId/:locale/partials/:id`
     - Soft-delete a Page Partial.
-  - PUT `/v1/pages/:menuItemId/:locale/partials/:id/restore`
+  - POST `/v1/pages/:menuItemId/:locale/partials/:id/restore`
     - Restore a previously deleted Page Partial.
 
 - Modules
@@ -151,16 +171,22 @@ All endpoints require machine authentication via `api-utils` middleware.
     - Create a Module.
   - GET `/v1/modules/lookup`
     - Returns Module lookup list.
+  - GET `/v1/modules/types/lookup`
+    - Returns Module Type lookup list.
   - GET `/v1/modules/name/available`
     - Checks if a Module name is available.
   - GET `/v1/modules/:id`
     - Get a Module by ID.
-  - PUT `/v1/modules/:id`
+  - PATCH `/v1/modules/:id`
     - Update a Module.
   - DELETE `/v1/modules/:id`
     - Soft-delete a Module.
-  - PUT `/v1/modules/:id/restore`
+  - POST `/v1/modules/:id/restore`
     - Restore a previously deleted Module.
+
+- Plugins
+  - GET `/v1/plugins/types/lookup`
+    - Returns Plugin Type lookup list.
 
 ## 🧪 Health and Errors
 - 404 route is registered via `api-utils` to handle unknown endpoints.

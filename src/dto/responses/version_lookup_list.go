@@ -9,9 +9,9 @@ type VersionLookupList struct {
 // SetVersionLookupList sets the list of version lookups.
 func (vll *VersionLookupList) SetVersionLookupList(versions *[]models.Version) {
 	vll.Versions = make([]VersionLookup, len(*versions))
-	for i, version := range *versions {
+	for i := range *versions {
 		var vl VersionLookup
-		vl.SetVersionLookup(&version)
+		vl.SetVersionLookup(&(*versions)[i])
 		vll.Versions[i] = vl
 	}
 }

@@ -2,8 +2,9 @@ package requests
 
 import (
 	"api-page/main/src/models"
-	"api-page/main/src/utils"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type UpdatePage struct {
@@ -20,7 +21,7 @@ type UpdatePage struct {
 	Indexing        []PageIndexing `json:"indexing" validate:"required,dive"`
 }
 
-func (u *UpdatePage) SetPage(page models.Page) {
+func (u *UpdatePage) SetPage(page *models.Page) {
 	indexing := make([]PageIndexing, 0, len(page.Indexing))
 	for i := range page.Indexing {
 		indexing = append(indexing, PageIndexing{

@@ -10,11 +10,11 @@ import (
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
 	util "github.com/ArnoldPMolenaar/api-utils/utils"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // GetMenu func for getting all menus paginated.
-func GetMenu(c *fiber.Ctx) error {
+func GetMenu(c fiber.Ctx) error {
 	paginationModel, err := services.GetMenus(c)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
@@ -24,7 +24,7 @@ func GetMenu(c *fiber.Ctx) error {
 }
 
 // GetMenuLookup func for getting menu lookup.
-func GetMenuLookup(c *fiber.Ctx) error {
+func GetMenuLookup(c fiber.Ctx) error {
 	versionIDParam := c.Query("versionId")
 	if versionIDParam == "" {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "VersionId parameter is required.")
@@ -52,7 +52,7 @@ func GetMenuLookup(c *fiber.Ctx) error {
 }
 
 // GetMenuByID func for getting a menu by ID.
-func GetMenuByID(c *fiber.Ctx) error {
+func GetMenuByID(c fiber.Ctx) error {
 	menuIDParam := c.Params("id")
 	menuID, err := util.StringToUint(menuIDParam)
 	if err != nil {
@@ -73,7 +73,7 @@ func GetMenuByID(c *fiber.Ctx) error {
 }
 
 // IsMenuNameAvailable method to check if menu is available.
-func IsMenuNameAvailable(c *fiber.Ctx) error {
+func IsMenuNameAvailable(c fiber.Ctx) error {
 	versionIDParam := c.Query("versionId")
 	versionID, err := util.StringToUint(versionIDParam)
 	if err != nil {
@@ -102,7 +102,7 @@ func IsMenuNameAvailable(c *fiber.Ctx) error {
 }
 
 // IsMenuItemWithAppNameAvailable method to check if menu item with app name is available.
-func IsMenuItemWithAppNameAvailable(c *fiber.Ctx) error {
+func IsMenuItemWithAppNameAvailable(c fiber.Ctx) error {
 	menuItemID, err := util.StringToUint(c.Params("id"))
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, err.Error())
@@ -124,12 +124,12 @@ func IsMenuItemWithAppNameAvailable(c *fiber.Ctx) error {
 }
 
 // CreateMenu func for creating a menu.
-func CreateMenu(c *fiber.Ctx) error {
+func CreateMenu(c fiber.Ctx) error {
 	// Create a new menu struct for the request.
 	menuRequest := &requests.CreateMenu{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(menuRequest); err != nil {
+	if err := c.Bind().Body(menuRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -175,7 +175,7 @@ func CreateMenu(c *fiber.Ctx) error {
 }
 
 // UpdateMenu func for updating a menu.
-func UpdateMenu(c *fiber.Ctx) error {
+func UpdateMenu(c fiber.Ctx) error {
 	// Get the menuID parameter from the URL.
 	menuIDParam := c.Params("id")
 	menuID, err := util.StringToUint(menuIDParam)
@@ -187,7 +187,7 @@ func UpdateMenu(c *fiber.Ctx) error {
 	menuRequest := &requests.UpdateMenu{}
 
 	// Check, if received JSON data is parsed.
-	if err := c.BodyParser(menuRequest); err != nil {
+	if err := c.Bind().Body(menuRequest); err != nil {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.BodyParse, err.Error())
 	}
 
@@ -240,7 +240,7 @@ func UpdateMenu(c *fiber.Ctx) error {
 }
 
 // DeleteMenu func for deleting a menu.
-func DeleteMenu(c *fiber.Ctx) error {
+func DeleteMenu(c fiber.Ctx) error {
 	// Get the ID from the URL.
 	id, err := util.StringToUint(c.Params("id"))
 	if err != nil {
@@ -264,7 +264,7 @@ func DeleteMenu(c *fiber.Ctx) error {
 }
 
 // RestoreMenu func for restoring a deleted menu.
-func RestoreMenu(c *fiber.Ctx) error {
+func RestoreMenu(c fiber.Ctx) error {
 	// Get the ID from the URL.
 	id, err := util.StringToUint(c.Params("id"))
 	if err != nil {
@@ -295,9 +295,7 @@ func flattenUpdateMenuItems(items *[]requests.UpdateMenuItem) []requests.UpdateM
 	var stack []requests.UpdateMenuItem
 
 	// seed stack
-	for i := range *items {
-		stack = append(stack, (*items)[i])
-	}
+	stack = append(stack, (*items)...)
 
 	// iterative DFS to avoid deep recursion
 	for len(stack) > 0 {
@@ -310,9 +308,7 @@ func flattenUpdateMenuItems(items *[]requests.UpdateMenuItem) []requests.UpdateM
 
 		// push children if present
 		if cur.Items != nil {
-			for i := range cur.Items {
-				stack = append(stack, (cur.Items)[i])
-			}
+			stack = append(stack, cur.Items...)
 		}
 	}
 

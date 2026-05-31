@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type Page struct {
@@ -27,30 +29,17 @@ type Page struct {
 func (p *Page) SetPage(page *models.Page) {
 	p.MenuItemID = page.MenuItemID
 	p.Locale = page.Locale
+	p.Plugin = utils.PtrFromNullString(page.Plugin)
 	p.Name = page.Name
+	p.MetaTitle = utils.PtrFromNullString(page.MetaTitle)
+	p.MetaDescription = utils.PtrFromNullString(page.MetaDescription)
+	p.Hashtag = utils.PtrFromNullString(page.Hashtag)
 	p.NewTabEnabled = page.NewTabEnabled
 	p.UrlEnabled = page.UrlEnabled
+	p.Url = utils.PtrFromNullString(page.Url)
+	p.EnabledAt = utils.PtrFromNullTime(page.EnabledAt)
 	p.CreatedAt = page.CreatedAt
 	p.UpdatedAt = page.UpdatedAt
-
-	if page.Plugin.Valid {
-		p.Plugin = &page.Plugin.String
-	}
-	if page.MetaTitle.Valid {
-		p.MetaTitle = &page.MetaTitle.String
-	}
-	if page.MetaDescription.Valid {
-		p.MetaDescription = &page.MetaDescription.String
-	}
-	if page.Hashtag.Valid {
-		p.Hashtag = &page.Hashtag.String
-	}
-	if page.Url.Valid {
-		p.Url = &page.Url.String
-	}
-	if page.EnabledAt.Valid {
-		p.EnabledAt = &page.EnabledAt.Time
-	}
 
 	p.Indexing = make([]PageIndexing, len(page.Indexing))
 	for i := range page.Indexing {

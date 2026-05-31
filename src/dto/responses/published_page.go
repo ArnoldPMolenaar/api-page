@@ -2,6 +2,8 @@ package responses
 
 import (
 	"api-page/main/src/models"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PublishedPage struct {
@@ -14,15 +16,9 @@ type PublishedPage struct {
 
 // SetPage sets the Page response from models.Page.
 func (pp *PublishedPage) SetPage(page *models.Page) {
-	if page.Plugin.Valid {
-		pp.Plugin = &page.Plugin.String
-	}
-	if page.MetaTitle.Valid {
-		pp.MetaTitle = &page.MetaTitle.String
-	}
-	if page.MetaDescription.Valid {
-		pp.MetaDescription = &page.MetaDescription.String
-	}
+	pp.Plugin = utils.PtrFromNullString(page.Plugin)
+	pp.MetaTitle = utils.PtrFromNullString(page.MetaTitle)
+	pp.MetaDescription = utils.PtrFromNullString(page.MetaDescription)
 
 	pp.Indexing = make([]PageIndexing, len(page.Indexing))
 	for i := range page.Indexing {

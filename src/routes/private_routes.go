@@ -4,7 +4,7 @@ import (
 	"api-page/main/src/controllers"
 
 	"github.com/ArnoldPMolenaar/api-utils/middleware"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // PrivateRoutes func for describe group of private routes.
@@ -15,8 +15,8 @@ func PrivateRoutes(a *fiber.App) {
 	// Register route group for /v1/apps.
 	apps := route.Group("/apps")
 	apps.Post("/", middleware.MachineProtected(), controllers.CreateApp)
-	apps.Put("/modules/types", middleware.MachineProtected(), controllers.SetAppModuleTypes)
-	apps.Put("/plugins/types", middleware.MachineProtected(), controllers.SetAppPluginTypes)
+	apps.Patch("/modules/types", middleware.MachineProtected(), controllers.SetAppModuleTypes)
+	apps.Patch("/plugins/types", middleware.MachineProtected(), controllers.SetAppPluginTypes)
 
 	// Register route group for /v1/versions.
 	versions := route.Group("/versions")
@@ -26,12 +26,12 @@ func PrivateRoutes(a *fiber.App) {
 	versions.Get("/name/available", middleware.MachineProtected(), controllers.IsVersionNameAvailable)
 	versions.Get("/:id", middleware.MachineProtected(), controllers.GetVersionByID)
 	versions.Get("/:id/footer", middleware.MachineProtected(), controllers.GetFooterByVersionID)
-	versions.Put("/:id", middleware.MachineProtected(), controllers.UpdateVersion)
+	versions.Patch("/:id", middleware.MachineProtected(), controllers.UpdateVersion)
 	versions.Put("/:id/duplicate", middleware.MachineProtected(), controllers.DuplicateVersion)
-	versions.Put("/:id/footer", middleware.MachineProtected(), controllers.UpdateFooter)
+	versions.Patch("/:id/footer", middleware.MachineProtected(), controllers.UpdateFooter)
 	versions.Delete("/:id", middleware.MachineProtected(), controllers.DeleteVersion)
-	versions.Put("/:id/publish", middleware.MachineProtected(), controllers.PublishVersion)
-	versions.Put("/:id/restore", middleware.MachineProtected(), controllers.RestoreVersion)
+	versions.Patch("/:id/publish", middleware.MachineProtected(), controllers.PublishVersion)
+	versions.Post("/:id/restore", middleware.MachineProtected(), controllers.RestoreVersion)
 
 	// Register route group for /v1/menus.
 	menus := route.Group("/menus")
@@ -40,9 +40,9 @@ func PrivateRoutes(a *fiber.App) {
 	menus.Get("/lookup", middleware.MachineProtected(), controllers.GetMenuLookup)
 	menus.Get("/name/available", middleware.MachineProtected(), controllers.IsMenuNameAvailable)
 	menus.Get("/:id", middleware.MachineProtected(), controllers.GetMenuByID)
-	menus.Put("/:id", middleware.MachineProtected(), controllers.UpdateMenu)
+	menus.Patch("/:id", middleware.MachineProtected(), controllers.UpdateMenu)
 	menus.Delete("/:id", middleware.MachineProtected(), controllers.DeleteMenu)
-	menus.Put("/:id/restore", middleware.MachineProtected(), controllers.RestoreMenu)
+	menus.Post("/:id/restore", middleware.MachineProtected(), controllers.RestoreMenu)
 
 	// Register route group for /v1/menu-items.
 	menuItems := route.Group("/menu-items")
@@ -51,14 +51,14 @@ func PrivateRoutes(a *fiber.App) {
 	// Register route group for /v1/pages.
 	pages := route.Group("/pages")
 	pages.Get("/:menuItemId/:locale", middleware.MachineProtected(), controllers.GetOrCreatePageByID)
-	pages.Put("/:menuItemId/:locale", middleware.MachineProtected(), controllers.UpdatePage)
+	pages.Patch("/:menuItemId/:locale", middleware.MachineProtected(), controllers.UpdatePage)
 	pages.Delete("/:menuItemId/:locale", middleware.MachineProtected(), controllers.DeletePage)
-	pages.Put("/:menuItemId/:locale/restore", middleware.MachineProtected(), controllers.RestorePage)
+	pages.Post("/:menuItemId/:locale/restore", middleware.MachineProtected(), controllers.RestorePage)
 	pages.Post("/:menuItemId/:locale/partials", middleware.MachineProtected(), controllers.CreatePagePartial)
 	pages.Get("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.GetPartialByID)
-	pages.Put("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.UpdatePagePartial)
+	pages.Patch("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.UpdatePagePartial)
 	pages.Delete("/:menuItemId/:locale/partials/:id", middleware.MachineProtected(), controllers.DeletePagePartial)
-	pages.Put("/:menuItemId/:locale/partials/:id/restore", middleware.MachineProtected(), controllers.RestorePagePartial)
+	pages.Post("/:menuItemId/:locale/partials/:id/restore", middleware.MachineProtected(), controllers.RestorePagePartial)
 
 	// Register route group for /v1/modules.
 	modules := route.Group("/modules")
@@ -68,9 +68,9 @@ func PrivateRoutes(a *fiber.App) {
 	modules.Get("/types/lookup", middleware.MachineProtected(), controllers.GetModuleTypeLookup)
 	modules.Get("/name/available", middleware.MachineProtected(), controllers.IsModuleNameAvailable)
 	modules.Get("/:id", middleware.MachineProtected(), controllers.GetModuleByID)
-	modules.Put("/:id", middleware.MachineProtected(), controllers.UpdateModule)
+	modules.Patch("/:id", middleware.MachineProtected(), controllers.UpdateModule)
 	modules.Delete("/:id", middleware.MachineProtected(), controllers.DeleteModule)
-	modules.Put("/:id/restore", middleware.MachineProtected(), controllers.RestoreModule)
+	modules.Post("/:id/restore", middleware.MachineProtected(), controllers.RestoreModule)
 
 	// Register route group for /v1/plugins.
 	plugins := route.Group("/plugins")

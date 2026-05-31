@@ -3,6 +3,8 @@ package responses
 import (
 	"api-page/main/src/models"
 	"time"
+
+	"github.com/ArnoldPMolenaar/api-utils/utils"
 )
 
 type PaginatedVersion struct {
@@ -22,18 +24,8 @@ func (v *PaginatedVersion) SetPaginatedVersion(version *models.Version) {
 	v.PublishID = version.PublishID.String()
 	v.AppName = version.AppName
 	v.Name = version.Name
+	v.EnabledAt = utils.PtrFromNullTime(version.EnabledAt)
+	v.PublishedAt = utils.PtrFromNullTime(version.PublishedAt)
 	v.CreatedAt = version.CreatedAt
 	v.UpdatedAt = version.UpdatedAt
-	v.EnabledAt = func() *time.Time {
-		if version.EnabledAt.Valid {
-			return &version.EnabledAt.Time
-		}
-		return nil
-	}()
-	v.PublishedAt = func() *time.Time {
-		if version.PublishedAt.Valid {
-			return &version.PublishedAt.Time
-		}
-		return nil
-	}()
 }

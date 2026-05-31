@@ -9,9 +9,9 @@ type ModuleLookupList struct {
 // SetModuleLookupList sets the list of module lookups.
 func (mll *ModuleLookupList) SetModuleLookupList(modules *[]models.Module) {
 	mll.Modules = make([]ModuleLookup, len(*modules))
-	for i, module := range *modules {
+	for i := range *modules {
 		var ml ModuleLookup
-		ml.SetModuleLookup(&module)
+		ml.SetModuleLookup(&(*modules)[i])
 		mll.Modules[i] = ml
 	}
 }
