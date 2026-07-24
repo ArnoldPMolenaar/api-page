@@ -9,10 +9,13 @@ import (
 type PublishedMenuItem struct {
 	ID            uint                `json:"id"`
 	Position      uint                `json:"position"`
+	Page          string              `json:"page"`
 	Name          string              `json:"name"`
 	URLName       string              `json:"urlName"`
 	Hashtag       *string             `json:"hashtag"`
 	Icon          *string             `json:"icon"`
+	IsHome        bool                `json:"isHome"`
+	IsCustom      bool                `json:"isCustom"`
 	Url           *string             `json:"url"`
 	UrlEnabled    bool                `json:"urlEnabled"`
 	NewTabEnabled bool                `json:"newTabEnabled"`
@@ -28,6 +31,7 @@ func (pmi *PublishedMenuItem) SetMenuItem(menuItem *models.MenuItem, position ui
 
 	pmi.ID = menuItem.ID
 	pmi.Position = position
+	pmi.Page = menuItem.Name
 
 	if page != nil {
 		pmi.Name = page.Name
@@ -39,6 +43,8 @@ func (pmi *PublishedMenuItem) SetMenuItem(menuItem *models.MenuItem, position ui
 	}
 
 	pmi.Icon = utils.PtrFromNullString(menuItem.Icon)
+	pmi.IsHome = menuItem.IsHome
+	pmi.IsCustom = menuItem.IsCustom
 
 	pmi.Items = make([]PublishedMenuItem, 0)
 }

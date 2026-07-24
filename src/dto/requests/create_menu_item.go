@@ -12,6 +12,8 @@ type CreateMenuItem struct {
 	Position  *uint              `json:"position" validate:"required"`
 	Name      string             `json:"name" validate:"required"`
 	Icon      *string            `json:"icon"`
+	IsHome    *bool              `json:"isHome"`
+	IsCustom  *bool              `json:"isCustom"`
 	EnabledAt *time.Time         `json:"enabledAt"`
 	Indexing  []MenuItemIndexing `json:"indexing" validate:"required,min=1,dive"`
 	Items     []CreateMenuItem   `json:"items" validate:"dive"`
@@ -28,6 +30,8 @@ func (c *CreateMenuItem) SetMenuItemRelation(relation *models.MenuItemRelation) 
 	c.Position = &relation.Position
 	c.Name = relation.MenuItemChild.Name
 	c.Icon = utils.PtrFromNullString(relation.MenuItemChild.Icon)
+	c.IsHome = &relation.MenuItemChild.IsHome
+	c.IsCustom = &relation.MenuItemChild.IsCustom
 	c.EnabledAt = utils.PtrFromNullTime(relation.MenuItemChild.EnabledAt)
 	c.Indexing = indexing
 	c.Items = make([]CreateMenuItem, 0)

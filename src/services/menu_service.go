@@ -690,6 +690,16 @@ func upsertMenuItem(tx *gorm.DB, menu *models.Menu, dto *requests.UpdateMenuItem
 		} else {
 			mi.Icon = sql.NullString{Valid: false}
 		}
+		if dto.IsHome != nil {
+			mi.IsHome = *dto.IsHome
+		} else {
+			mi.IsHome = false
+		}
+		if dto.IsCustom != nil {
+			mi.IsCustom = *dto.IsCustom
+		} else {
+			mi.IsCustom = false
+		}
 		if dto.EnabledAt != nil {
 			mi.EnabledAt = sql.NullTime{Time: *dto.EnabledAt, Valid: true}
 		} else {
@@ -764,6 +774,12 @@ func createMenuItemHierarchy(tx *gorm.DB, menu *models.Menu, parent *models.Menu
 	}
 	if item.Icon != nil {
 		mi.Icon = sql.NullString{String: *item.Icon, Valid: true}
+	}
+	if item.IsHome != nil {
+		mi.IsHome = *item.IsHome
+	}
+	if item.IsCustom != nil {
+		mi.IsCustom = *item.IsCustom
 	}
 	if item.EnabledAt != nil {
 		mi.EnabledAt = sql.NullTime{Time: *item.EnabledAt, Valid: true}

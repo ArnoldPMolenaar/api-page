@@ -8,6 +8,8 @@ type UpdateMenuItem struct {
 	Position  *uint              `json:"position" validate:"required"`
 	Name      string             `json:"name" validate:"required"`
 	Icon      *string            `json:"icon"`
+	IsHome    *bool              `json:"isHome"`
+	IsCustom  *bool              `json:"isCustom"`
 	UpdatedAt *time.Time         `json:"updatedAt"`
 	EnabledAt *time.Time         `json:"enabledAt"`
 	Indexing  []MenuItemIndexing `json:"indexing" validate:"required,min=1,dive"`

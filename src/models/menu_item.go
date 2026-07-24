@@ -12,6 +12,8 @@ type MenuItem struct {
 	VersionID uint   `gorm:"not null"`
 	Name      string `gorm:"not null"`
 	Icon      sql.NullString
+	IsHome    bool `gorm:"not null,default:false"`
+	IsCustom  bool `gorm:"not null,default:false"`
 
 	// Relationships.
 	Version  Version            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:VersionID;references:ID"`

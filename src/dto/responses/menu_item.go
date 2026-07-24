@@ -13,6 +13,8 @@ type MenuItem struct {
 	Position  uint               `json:"position"`
 	Name      string             `json:"name"`
 	Icon      *string            `json:"icon"`
+	IsHome    bool               `json:"isHome"`
+	IsCustom  bool               `json:"isCustom"`
 	EnabledAt *time.Time         `json:"enabledAt"`
 	CreatedAt time.Time          `json:"createdAt"`
 	UpdatedAt time.Time          `json:"updatedAt"`
@@ -27,6 +29,8 @@ func (mi *MenuItem) SetMenuItem(menuItem *models.MenuItem, position uint) {
 	mi.Position = position
 	mi.Name = menuItem.Name
 	mi.Icon = utils.PtrFromNullString(menuItem.Icon)
+	mi.IsHome = menuItem.IsHome
+	mi.IsCustom = menuItem.IsCustom
 	mi.EnabledAt = utils.PtrFromNullTime(menuItem.EnabledAt)
 	mi.CreatedAt = menuItem.CreatedAt
 	mi.UpdatedAt = menuItem.UpdatedAt
