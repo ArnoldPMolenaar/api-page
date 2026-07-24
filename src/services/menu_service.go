@@ -182,7 +182,7 @@ func GetMenusByVersionID(versionID uint, locale string) (*[]models.Menu, error) 
 						return db3.Where("locale = ? AND enabled_at IS NOT NULL", locale)
 					}).Where("enabled_at IS NOT NULL")
 				}).
-					Joins("JOIN menu_items mi ON mi.id = menu_item_relations.menu_item_child_id").
+					Joins("JOIN menu_items mi ON mi.id = menu_item_relations.menu_item_child_id AND mi.deleted_at IS NULL").
 					Joins("JOIN pages p ON p.menu_item_id = mi.id AND p.locale = ? AND p.enabled_at IS NOT NULL", locale).
 					Order("menu_item_parent_id NULLS FIRST").
 					Order("position ASC")
@@ -205,6 +205,7 @@ func GetMenuByID(menuID uint) (*models.Menu, error) {
 		Preload("MenuItemRelations", func(db *gorm.DB) *gorm.DB {
 			return db.Preload("MenuItemParent", func(db2 *gorm.DB) *gorm.DB { return db2.Preload("Indexing") }).
 				Preload("MenuItemChild", func(db2 *gorm.DB) *gorm.DB { return db2.Preload("Indexing") }).
+				Joins("JOIN menu_items mi ON mi.id = menu_item_relations.menu_item_child_id AND mi.deleted_at IS NULL").
 				Order("menu_item_parent_id NULLS FIRST").
 				Order("position ASC")
 		}).
@@ -665,7 +666,7 @@ func reconcileMenuItems(tx *gorm.DB, menu *models.Menu, parent *models.MenuItem,
 	for i := range toDelete {
 		childID := toDelete[i].MenuItemChildID
 		if _, ok := processed[childID]; !ok {
-			// Soft delete the MenuItem (cascades will remove relations and indexing via constraints).
+			// Soft delete the MenuItem and keep relations so restore procedures can rebuild the tree.
 			if err := tx.Delete(&models.MenuItem{}, childID).Error; err != nil {
 				return err
 			}
