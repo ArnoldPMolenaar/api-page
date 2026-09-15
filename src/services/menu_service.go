@@ -197,6 +197,36 @@ func GetMenusByVersionID(versionID uint, locale string) (*[]models.Menu, error) 
 	return &menus, nil
 }
 
+// GetMenuRoutesByVersionID method to get menu routes by version ID.
+func GetMenuRoutesByVersionID(versionID uint) (*[]models.Page, error) {
+	pages := make([]models.Page, 0)
+
+	if inCache, err := isVersionMenuRoutesInCache(versionID); err != nil {
+		return nil, err
+	} else if inCache {
+		if cachePages, err := getVersionMenuRoutesFromCache(versionID); err != nil {
+			return nil, err
+		} else if cachePages != nil && len(*cachePages) > 0 {
+			pages = *cachePages
+		}
+	}
+
+	if len(pages) == 0 {
+		if result := database.Pg.Model(&models.Page{}).
+			Select("pages.menu_item_id", "pages.locale", "pages.name").
+			Joins("JOIN menu_items ON menu_items.id = pages.menu_item_id AND menu_items.deleted_at IS NULL").
+			Where("menu_items.version_id = ?", versionID).
+			Where("pages.enabled_at IS NOT NULL").
+			Find(&pages); result.Error != nil {
+			return nil, result.Error
+		}
+
+		_ = setVersionMenuRoutesToCache(versionID, &pages)
+	}
+
+	return &pages, nil
+}
+
 // GetMenuByID method to get a menu by ID.
 func GetMenuByID(menuID uint) (*models.Menu, error) {
 	menu := &models.Menu{}
@@ -240,6 +270,7 @@ func CreateMenu(menu *requests.CreateMenu) (*models.Menu, error) {
 
 	_ = deleteMenusLookupFromCache(menu.VersionID)
 	_ = deleteAllVersionMenusFromCache(menu.VersionID)
+	_ = deleteVersionMenuRoutesFromCache(menu.VersionID)
 
 	return result, nil
 }
@@ -285,6 +316,7 @@ func UpdateMenu(oldMenu *models.Menu, menu *requests.UpdateMenu) (*models.Menu, 
 
 	_ = deleteMenusLookupFromCache(oldMenu.VersionID)
 	_ = deleteAllVersionMenusFromCache(oldMenu.VersionID)
+	_ = deleteVersionMenuRoutesFromCache(oldMenu.VersionID)
 
 	return oldMenu, nil
 }
@@ -322,6 +354,7 @@ func DeleteMenu(versionID, menuID uint) error {
 	if err == nil {
 		_ = deleteMenusLookupFromCache(versionID)
 		_ = deleteAllVersionMenusFromCache(versionID)
+		_ = deleteVersionMenuRoutesFromCache(versionID)
 	}
 
 	return err
@@ -339,6 +372,7 @@ func RestoreMenu(menuID uint) error {
 
 		_ = deleteMenusLookupFromCache(versionID)
 		_ = deleteAllVersionMenusFromCache(versionID)
+		_ = deleteVersionMenuRoutesFromCache(versionID)
 	}
 
 	return err
@@ -563,6 +597,77 @@ func deleteVersionMenusFromCache(versionID uint, locale string) error {
 // deleteAllVersionMenusFromCache deletes existing menus in a version for all languages from the cache.
 func deleteAllVersionMenusFromCache(versionID uint) error {
 	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getVersionMenusCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// getVersionMenuRoutesCacheKey gets the key for the cache.
+func getVersionMenuRoutesCacheKey(versionID uint) string {
+	return fmt.Sprintf("menus:version:%d:routes", versionID)
+}
+
+// isVersionMenuRoutesInCache checks if the menu routes of a version exists in the cache.
+func isVersionMenuRoutesInCache(versionID uint) (bool, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Exists().Key(getVersionMenuRoutesCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return false, result.Error()
+	}
+
+	value, err := result.ToInt64()
+	if err != nil {
+		return false, err
+	}
+
+	return value == 1, nil
+}
+
+// getVersionMenuRoutesFromCache gets the menu routes in a version from the cache.
+func getVersionMenuRoutesFromCache(versionID uint) (*[]models.Page, error) {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Get().Key(getVersionMenuRoutesCacheKey(versionID)).Build())
+	if result.Error() != nil {
+		return nil, result.Error()
+	}
+
+	value, err := result.ToString()
+	if err != nil {
+		return nil, err
+	}
+
+	var versionMenuRoutes []models.Page
+	if err := json.Unmarshal([]byte(value), &versionMenuRoutes); err != nil {
+		return nil, err
+	}
+
+	return &versionMenuRoutes, nil
+}
+
+// setVersionMenuRoutesToCache sets the menu routes of a version to the cache.
+func setVersionMenuRoutesToCache(versionID uint, pages *[]models.Page) error {
+	value, err := json.Marshal(pages)
+	if err != nil {
+		return err
+	}
+
+	expiration := os.Getenv("VALKEY_EXPIRATION")
+	duration, err := time.ParseDuration(expiration)
+	if err != nil {
+		return err
+	}
+
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Set().Key(getVersionMenuRoutesCacheKey(versionID)).Value(valkey.BinaryString(value)).Ex(duration).Build())
+	if result.Error() != nil {
+		return result.Error()
+	}
+
+	return nil
+}
+
+// deleteVersionMenuRoutesFromCache deletes existing menu routes for a version from the cache.
+func deleteVersionMenuRoutesFromCache(versionID uint) error {
+	result := cache.Valkey.Do(context.Background(), cache.Valkey.B().Del().Key(getVersionMenuRoutesCacheKey(versionID)).Build())
 	if result.Error() != nil {
 		return result.Error()
 	}

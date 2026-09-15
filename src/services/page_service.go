@@ -220,6 +220,7 @@ func GetOrCreatePage(menuItemID uint, locale string) (*models.Page, error) {
 		return nil, err
 	}
 	_ = deleteVersionMenusFromCache(versionID, locale)
+	_ = deleteVersionMenuRoutesFromCache(versionID)
 
 	return page, nil
 }
@@ -268,6 +269,7 @@ func UpdatePage(page *models.Page, request *requests.UpdatePage) (*models.Page, 
 		return nil, err
 	}
 	_ = deleteVersionMenusFromCache(versionID, page.Locale)
+	_ = deleteVersionMenuRoutesFromCache(versionID)
 	_ = deletePageFromCache(page.MenuItemID, page.Locale)
 
 	return page, nil
@@ -568,6 +570,13 @@ func syncPagePartialColumns(tx *gorm.DB, partialID, rowID uint, existingColumns 
 func DeletePage(menuItemID uint, locale string) error {
 	err := database.Pg.Delete(&models.Page{MenuItemID: menuItemID, Locale: locale}).Error
 	if err == nil {
+		versionID, versionErr := GetVersionIDByMenuItemID(menuItemID)
+		if versionErr != nil {
+			return versionErr
+		}
+
+		_ = deleteVersionMenusFromCache(versionID, locale)
+		_ = deleteVersionMenuRoutesFromCache(versionID)
 		_ = deletePageFromCache(menuItemID, locale)
 	}
 
@@ -586,10 +595,22 @@ func DeletePagePartial(menuItemID uint, locale string, partialID uint) error {
 
 // RestorePage method to restore a deleted page.
 func RestorePage(menuItemID uint, locale string) error {
-	return database.Pg.Unscoped().
+	err := database.Pg.Unscoped().
 		Model(&models.Page{}).
 		Where("menu_item_id = ? AND locale = ?", menuItemID, locale).
 		Update("deleted_at", nil).Error
+	if err == nil {
+		versionID, versionErr := GetVersionIDByMenuItemID(menuItemID)
+		if versionErr != nil {
+			return versionErr
+		}
+
+		_ = deleteVersionMenusFromCache(versionID, locale)
+		_ = deleteVersionMenuRoutesFromCache(versionID)
+		_ = deletePageFromCache(menuItemID, locale)
+	}
+
+	return err
 }
 
 // RestorePagePartial method to restore a deleted page partial by its ID.

@@ -7,11 +7,11 @@ type PublishedMenuList struct {
 }
 
 // SetMenuList sets the list of menus.
-func (pml *PublishedMenuList) SetMenuList(menus *[]models.Menu) {
+func (pml *PublishedMenuList) SetMenuList(menus *[]models.Menu, pages *[]models.Page) {
 	pml.Menus = make([]PublishedMenu, len(*menus))
 	for i := range *menus {
 		var pm PublishedMenu
-		pm.SetMenu(&(*menus)[i])
+		pm.SetMenu(&(*menus)[i], pages)
 		pml.Menus[i] = pm
 	}
 }

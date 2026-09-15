@@ -304,8 +304,8 @@ func DuplicateVersion(oldVersion *models.Version, settings *requests.CreateDupli
 	_ = deleteVersionsLookupFromCache(newVersion.AppName)
 	_ = deleteMenusLookupFromCache(newVersion.ID)
 	_ = deleteAllVersionMenusFromCache(newVersion.ID)
+	_ = deleteVersionMenuRoutesFromCache(newVersion.ID)
 	for i := range locales {
-		_ = deleteVersionMenusFromCache(newVersion.ID, locales[i])
 		if settings.Footer {
 			_ = deleteFooterFromCache(newVersion.ID, locales[i])
 		}

@@ -11,7 +11,7 @@ type PublishedMenu struct {
 }
 
 // SetMenu sets the Menu response from the models.Menu model.
-func (pm *PublishedMenu) SetMenu(menu *models.Menu) {
+func (pm *PublishedMenu) SetMenu(menu *models.Menu, pages *[]models.Page) {
 	pm.ID = menu.ID
 	pm.Name = menu.Name
 
@@ -21,7 +21,8 @@ func (pm *PublishedMenu) SetMenu(menu *models.Menu) {
 
 		if !relation.MenuItemParentID.Valid {
 			menuItem := PublishedMenuItem{}
-			menuItem.SetMenuItem(&relation.MenuItemChild, relation.Position)
+			routeMenuItemIDs := appendRouteMenuItemID(nil, &relation.MenuItemChild)
+			menuItem.SetMenuItem(&relation.MenuItemChild, relation.Position, pages, routeMenuItemIDs)
 			pm.Items = append(pm.Items, menuItem)
 			continue
 		}
@@ -29,10 +30,22 @@ func (pm *PublishedMenu) SetMenu(menu *models.Menu) {
 		parentItem := pm.findParentItem(relation.MenuItemParentID.V, &pm.Items)
 		if parentItem != nil {
 			menuItem := PublishedMenuItem{}
-			menuItem.SetMenuItem(&relation.MenuItemChild, relation.Position)
+			routeMenuItemIDs := appendRouteMenuItemID(parentItem.routeMenuItemIDs, &relation.MenuItemChild)
+			menuItem.SetMenuItem(&relation.MenuItemChild, relation.Position, pages, routeMenuItemIDs)
 			parentItem.Items = append(parentItem.Items, menuItem)
 		}
 	}
+}
+
+// appendRouteMenuItemID copies the parent route path and appends the current item unless it is the homepage.
+func appendRouteMenuItemID(parentRouteMenuItemIDs []uint, menuItem *models.MenuItem) []uint {
+	routeMenuItemIDs := make([]uint, 0, len(parentRouteMenuItemIDs)+1)
+	routeMenuItemIDs = append(routeMenuItemIDs, parentRouteMenuItemIDs...)
+	if menuItem != nil && !menuItem.IsHome {
+		routeMenuItemIDs = append(routeMenuItemIDs, menuItem.ID)
+	}
+
+	return routeMenuItemIDs
 }
 
 // findParentItem recursively finds a parent MenuItem by ID.

@@ -110,8 +110,13 @@ func GetMenusByVersionID(c fiber.Ctx) error {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	}
 
+	pages, err := services.GetMenuRoutesByVersionID(versionID)
+	if err != nil {
+		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+	}
+
 	response := responses.PublishedMenuList{}
-	response.SetMenuList(menus)
+	response.SetMenuList(menus, pages)
 
 	return c.Status(fiber.StatusOK).JSON(response)
 }
