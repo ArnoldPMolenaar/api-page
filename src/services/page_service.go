@@ -365,7 +365,9 @@ func UpdatePagePartialWithTx(tx *gorm.DB, partial *models.PagePartial, dtoPartia
 
 	partial.Name = dtoPartial.Name
 
+	// Rows and columns are synchronized explicitly below, not by GORM.
 	if err := tx.Model(partial).
+		Omit(clause.Associations).
 		Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 		Updates(partial).Error; err != nil {
 		return nil, err
@@ -434,12 +436,13 @@ func syncPagePartialRows(tx *gorm.DB, partialID uint, parentColumnID *uint, exis
 
 		if row.ID != 0 {
 			if err := tx.Model(row).
+				Omit(clause.Associations).
 				Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 				Updates(row).Error; err != nil {
 				return nil, err
 			}
 		} else {
-			if err := tx.Create(row).Error; err != nil {
+			if err := tx.Omit(clause.Associations).Create(row).Error; err != nil {
 				return nil, err
 			}
 		}
@@ -526,13 +529,17 @@ func syncPagePartialColumns(tx *gorm.DB, partialID, rowID uint, existingColumns 
 		col.Content = utils.NewNullString(dtoCol.Content)
 
 		if col.ID != 0 {
+			// Include null/zero values and prevent the preloaded Module from
+			// overwriting ModuleID in GORM's belongs-to association callback.
 			if err := tx.Model(col).
+				Select("*").
+				Omit("id", "created_at", clause.Associations).
 				Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 				Updates(col).Error; err != nil {
 				return nil, err
 			}
 		} else {
-			if err := tx.Create(col).Error; err != nil {
+			if err := tx.Omit(clause.Associations).Create(col).Error; err != nil {
 				return nil, err
 			}
 		}
