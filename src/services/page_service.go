@@ -740,6 +740,30 @@ func deletePageFromCache(menuItemID uint, locale string) error {
 	return nil
 }
 
+// deletePagesFromCacheByModuleID deletes cached pages that reference a module.
+func deletePagesFromCacheByModuleID(moduleID uint) error {
+	var pages []struct {
+		MenuItemID uint
+		Locale     string
+	}
+	if err := database.Pg.Model(&models.PagePartial{}).
+		Distinct("page_partials.menu_item_id", "page_partials.locale").
+		Joins("JOIN page_partial_rows ON page_partial_rows.page_partial_id = page_partials.id").
+		Joins("JOIN page_partial_row_columns ON page_partial_row_columns.page_partial_row_id = page_partial_rows.id").
+		Where("page_partial_row_columns.module_id = ?", moduleID).
+		Scan(&pages).Error; err != nil {
+		return err
+	}
+
+	for _, page := range pages {
+		if err := deletePageFromCache(page.MenuItemID, page.Locale); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // deletePagesFromCacheByMenuItemID deletes all pages related to a menu item from the cache by the menu item ID.
 func deletePagesFromCacheByMenuItemID(menuItemID uint) error {
 	var locales []string

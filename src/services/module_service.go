@@ -210,6 +210,7 @@ func CreateModule(module *requests.CreateModule) (*models.Module, error) {
 	}
 
 	_ = deleteModulesLookupFromCache(m.AppName)
+	_ = deletePagesFromCacheByModuleID(result.ID)
 
 	return result, nil
 }
@@ -229,6 +230,7 @@ func UpdateModule(oldModule *models.Module, module *requests.UpdateModule) (*mod
 	}
 
 	_ = deleteModulesLookupFromCache(oldModule.AppName)
+	_ = deletePagesFromCacheByModuleID(oldModule.ID)
 
 	return oldModule, nil
 }
@@ -238,6 +240,7 @@ func DeleteModule(moduleID uint, appName string) error {
 	err := database.Pg.Delete(&models.Module{}, moduleID).Error
 	if err == nil {
 		_ = deleteModulesLookupFromCache(appName)
+		_ = deletePagesFromCacheByModuleID(moduleID)
 	}
 
 	return err
@@ -247,6 +250,7 @@ func DeleteModule(moduleID uint, appName string) error {
 func RestoreModule(moduleID uint) error {
 	err := database.Pg.Unscoped().Model(&models.Module{}).Where("id = ?", moduleID).Update("deleted_at", nil).Error
 	if err == nil {
+		_ = deletePagesFromCacheByModuleID(moduleID)
 		var appName string
 
 		if result := database.Pg.Unscoped().Model(&models.Module{}).Where("id = ?", moduleID).Pluck("app_name", &appName); result.Error != nil {
