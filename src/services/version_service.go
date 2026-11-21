@@ -32,6 +32,15 @@ func IsVersionPublished(versionID uint) (bool, error) {
 	}
 }
 
+// IsPublishIDExists method to check if a publish ID exists.
+func IsPublishIDExists(publishID string) (bool, error) {
+	if result := database.Pg.Limit(1).Find(&models.Version{}, "publish_id = ?", publishID); result.Error != nil {
+		return false, result.Error
+	} else {
+		return result.RowsAffected == 1, nil
+	}
+}
+
 // IsVersionAvailable method to check if a version is available.
 func IsVersionAvailable(appName, versionName string, ignore *string) (bool, error) {
 	query := database.Pg.Limit(1)
@@ -170,6 +179,17 @@ func GetPublishedVersionByAppName(appName string) (*models.Version, error) {
 	version := &models.Version{}
 
 	if result := database.Pg.Limit(1).Find(version, "app_name = ? AND published_at IS NOT NULL", appName); result.Error != nil {
+		return nil, result.Error
+	}
+
+	return version, nil
+}
+
+// GetPublishedVersionByPublishID method to get the published version by publish ID.
+func GetPublishedVersionByPublishID(publishID string) (*models.Version, error) {
+	version := &models.Version{}
+
+	if result := database.Pg.Limit(1).Find(version, "publish_id = ?", publishID); result.Error != nil {
 		return nil, result.Error
 	}
 

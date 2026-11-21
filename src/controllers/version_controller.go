@@ -4,6 +4,7 @@ import (
 	"api-page/main/src/dto/requests"
 	"api-page/main/src/dto/responses"
 	"api-page/main/src/errors"
+	"api-page/main/src/models"
 	"api-page/main/src/services"
 
 	errorutil "github.com/ArnoldPMolenaar/api-utils/errors"
@@ -69,11 +70,19 @@ func GetVersionByID(c fiber.Ctx) error {
 // GetPublishedVersionByAppName func for getting the published version by app name.
 func GetPublishedVersionByAppName(c fiber.Ctx) error {
 	appName := c.Query("app")
-	if appName == "" {
+	publishId := c.Query("publishId")
+	if appName == "" && publishId == "" {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "App name parameter is required.")
 	}
 
-	version, err := services.GetPublishedVersionByAppName(appName)
+	var version *models.Version
+	var err error
+
+	if publishId != "" {
+		version, err = services.GetPublishedVersionByPublishID(publishId)
+	} else {
+		version, err = services.GetPublishedVersionByAppName(appName)
+	}
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
 	} else if version.ID == 0 {
@@ -99,10 +108,20 @@ func GetMenusByVersionID(c fiber.Ctx) error {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "Locale parameter is required.")
 	}
 
-	if isPublished, err := services.IsVersionPublished(versionID); err != nil {
-		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
-	} else if !isPublished {
-		return errorutil.Response(c, fiber.StatusBadRequest, errors.VersionNotPublished, "Version is not published.")
+	publishId := c.Query("publishId")
+	exists := publishId != ""
+	if exists {
+		exists, err = services.IsPublishIDExists(publishId)
+		if err != nil {
+			return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+		}
+	}
+	if !exists {
+		if isPublished, err := services.IsVersionPublished(versionID); err != nil {
+			return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+		} else if !isPublished {
+			return errorutil.Response(c, fiber.StatusBadRequest, errors.VersionNotPublished, "Version is not published.")
+		}
 	}
 
 	menus, err := services.GetMenusByVersionID(versionID, locale)

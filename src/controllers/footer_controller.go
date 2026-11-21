@@ -24,6 +24,22 @@ func GetPublishedFooterByVersionID(c fiber.Ctx) error {
 		return errorutil.Response(c, fiber.StatusBadRequest, errorutil.InvalidParam, "Locale parameter is required.")
 	}
 
+	publishId := c.Query("publishId")
+	exists := publishId != ""
+	if exists {
+		exists, err = services.IsPublishIDExists(publishId)
+		if err != nil {
+			return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+		}
+	}
+	if !exists {
+		if isPublished, err := services.IsVersionPublished(versionID); err != nil {
+			return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
+		} else if !isPublished {
+			return errorutil.Response(c, fiber.StatusBadRequest, errors.VersionNotPublished, "Version is not published.")
+		}
+	}
+
 	rows, err := services.GetFooterByVersionID(versionID, locale)
 	if err != nil {
 		return errorutil.Response(c, fiber.StatusInternalServerError, errorutil.QueryError, err.Error())
