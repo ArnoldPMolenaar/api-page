@@ -137,6 +137,8 @@ func syncFooterRows(tx *gorm.DB, versionID uint, locale string, parentColumnID *
 
 		if row.ID != 0 {
 			if err := tx.Model(row).
+				Select("*").
+				Omit("id", "created_at", "deleted_at", clause.Associations).
 				Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 				Updates(row).Error; err != nil {
 				return nil, err

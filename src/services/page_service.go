@@ -436,7 +436,8 @@ func syncPagePartialRows(tx *gorm.DB, partialID uint, parentColumnID *uint, exis
 
 		if row.ID != 0 {
 			if err := tx.Model(row).
-				Omit(clause.Associations).
+				Select("*").
+				Omit("id", "created_at", "deleted_at", clause.Associations).
 				Clauses(clause.Returning{Columns: []clause.Column{{Name: "updated_at"}}}).
 				Updates(row).Error; err != nil {
 				return nil, err
